@@ -1,0 +1,10 @@
+^CLAUDE\.md$
+^\.claude$
+^main\.R$
+^extras$
+^\.Rhistory$
+^\.\.Rcheck$
+^.*\.Rcheck$
+^\.git$
+^\.gitignore$
+^\.github$

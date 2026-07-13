@@ -1,0 +1,324 @@
+---
+title: "Introduction to infometrics"
+author: "Package Author"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to infometrics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+## Overview
+
+The **infometrics** package implements the class of Information-Theoretic (IT)
+estimators for econometric models, following the unified framework developed
+in Golan (2008). The connecting thread across all estimators is the
+**Cressie-Read criterion** — a generalized entropy of order α — of which
+Shannon entropy, Empirical Likelihood, and the chi-squared statistic are all
+special cases.
+
+Phase 1 provides:
+
+- Entropy and divergence measures (Shannon, KL, Rényi, Tsallis, Cressie-Read)
+- The classical Maximum Entropy (ME) and Cross-Entropy (CE) estimators
+- Inference tools (normalized entropy, entropy-ratio statistic, pseudo-R²)
+- Support space constructors for GME/GCE (Phase 2)
+
+```{r load}
+library(infometrics)
+```
+
+---
+
+## 1. Entropy measures
+
+### Shannon entropy
+
+Shannon entropy H(p) = -Σ p_k log(p_k) measures the uncertainty in a
+probability distribution. It reaches its maximum value of log(K) for the
+uniform distribution over K outcomes (complete ignorance) and equals zero for
+a degenerate point mass (perfect certainty).
+
+```{r shannon}
+# Uniform distribution over 6 outcomes: maximum entropy
+p_uniform <- rep(1/6, 6)
+shannon_entropy(p_uniform)       # = log(6)
+log(6)
+
+# A more informative distribution: lower entropy
+p_skewed <- c(0.50, 0.25, 0.10, 0.08, 0.05, 0.02)
+shannon_entropy(p_skewed)
+
+# In bits (base 2): H(0.5, 0.5) = 1 bit
+shannon_entropy(c(0.5, 0.5), base = 2)
+```
+
+### The Cressie-Read unifying family
+
+The `cressie_read()` function implements the power divergence statistic that
+connects all IT estimators through a single parameter α (Golan 2008, Eq. 3.8).
+
+```{r cr-family}
+p <- c(0.50, 0.30, 0.20)
+q <- rep(1/3, 3)
+
+# alpha -> 0: KL divergence
+cat("CR(alpha=1e-9):   ", cressie_read(p, q, alpha = 1e-9), "\n")
+cat("KL divergence:    ", kl_divergence(p, q), "\n")
+
+# alpha = 1: Pearson chi-squared / 2
+cat("CR(alpha=1):      ", cressie_read(p, q, alpha = 1), "\n")
+cat("Pearson chisq/2:  ", 0.5 * sum((p - q)^2 / q), "\n")
+```
+
+### Normalized entropy
+
+The normalized entropy S(p̃) = H(p) / log(K) is the primary goodness-of-fit
+measure for IT models. It lies in [0, 1], with 1 indicating complete ignorance
+and 0 indicating perfect certainty.
+
+```{r normalized}
+normalized_entropy(p_uniform)  # = 1
+normalized_entropy(p_skewed)   # < 1
+```
+
+---
+
+## 2. Maximum Entropy estimation
+
+### 2.1 Under the Hood: the Dual ME by Hand
+
+Before calling `me()`, it is instructive to build the dual ME estimator from
+scratch for the scalar-constraint case. Jaynes (1957) posed the following
+problem: a die is thrown many times and only the mean outcome ȳ = 4.5 is
+recorded. What is the maximum-entropy distribution consistent with that mean?
+
+The **dual concentrated problem** (Golan 2008, Eq. 4.4–4.5) replaces the
+K-dimensional probability vector **p** with a single Lagrange multiplier λ:
+
+```
+min_λ  −λ ȳ + log Ω(λ),    Ω(λ) = Σ_k q_k exp(λ x_k)
+```
+
+where **q** is the prior (uniform by default) and x_k are the support points.
+The solution is p̂_k = q_k exp(λ̂ x_k) / Ω(λ̂).
+
+The implementation below uses the **log-sum-exp trick** for numerical stability
+and **BFGS with an analytic gradient** — the same choices made inside `me()`.
+
+```{r jaynes-helpers}
+# Internal helpers: dot-prefix = not exported
+.jd_obj <- function(lambda, x, q, y) {
+  e         <- lambda * x               # exponents
+  m         <- max(e)                   # log-sum-exp shift
+  log_Omega <- log(sum(q * exp(e - m))) + m
+  -lambda * y + log_Omega               # dual objective (Golan 2008, Eq. 4.4)
+}
+
+.jd_grad <- function(lambda, x, q, y) {
+  e   <- lambda * x
+  m   <- max(e)
+  w   <- q * exp(e - m)
+  p   <- w / sum(w)                     # p_k = q_k exp(lambda x_k) / Omega
+  -(y - sum(x * p))                     # gradient (Golan 2008, Eq. 4.5)
+}
+
+jaynes_est <- function(x, y, q = NULL) {
+  K <- length(x)
+  if (K < 2)
+    stop("x must have length >= 2. Got length(x) = ", K, ".")
+  if (y <= min(x) || y >= max(x))
+    stop("y must satisfy min(x) < y < max(x). Got y = ", y,
+         ", min(x) = ", min(x), ", max(x) = ", max(x), ".")
+  if (is.null(q))
+    q <- rep(1 / K, K)
+  if (length(q) != K || any(q <= 0) || abs(sum(q) - 1) > 1e-8)
+    stop("q must be a probability vector of length ", K, ".")
+
+  opt    <- stats::optim(0, .jd_obj, .jd_grad, x = x, q = q, y = y,
+                         method = "BFGS")
+  lambda <- opt$par
+  e      <- lambda * x
+  m      <- max(e)
+  w      <- q * exp(e - m)
+  p_hat  <- w / sum(w)
+
+  list(
+    p_hat           = p_hat,
+    lambda_hat      = lambda,
+    H_star          = -sum(p_hat * log(p_hat)),
+    moment_residual = y - sum(x * p_hat),
+    converged       = (opt$convergence == 0)
+  )
+}
+```
+
+```{r jaynes-demo}
+x      <- 1:6
+y_mean <- 4.5
+
+jfit <- jaynes_est(x, y_mean)
+round(jfit$p_hat, 4)
+cat("lambda_hat:     ", round(jfit$lambda_hat, 6), "\n")
+cat("H_star:         ", round(jfit$H_star, 6),     "\n")
+cat("moment_residual:", format(jfit$moment_residual, scientific = TRUE), "\n")
+cat("converged:      ", jfit$converged,             "\n")
+```
+
+The moment residual is effectively zero, confirming the constraint
+ȳ = Σ x_k p̂_k is satisfied. We verify that `me()` produces identical
+probabilities:
+
+```{r jaynes-equiv}
+fit_me_check <- me(y = 4.5, X = matrix(1:6, nrow = 1))
+cat("max |p_hat_manual - p_hat_me|:",
+    max(abs(jfit$p_hat - coef(fit_me_check))), "\n")
+```
+
+---
+
+### 2.2 The classic "loaded die" example via `me()`
+
+Following Golan (2008, Section 4.6): we observe only the mean of a six-sided
+die throw (y = 4.5) and want to recover the underlying probability
+distribution. This is the canonical under-determined problem (K = 6
+unknowns, T = 1 constraint).
+
+```{r die-problem}
+support <- 1:6
+X       <- matrix(support, nrow = 1)  # 1 moment, 6 outcomes
+y_mean  <- 4.5                        # observed mean
+
+fit <- me(y = y_mean, X = X)
+print(fit)
+```
+
+The estimated probabilities show more mass concentrated on higher outcomes, as
+required by the mean constraint. The normalized entropy S is close to 1,
+meaning the single mean constraint leaves substantial uncertainty.
+
+```{r die-plot, fig.cap="ME estimated probabilities for the die problem"}
+barplot(
+  fit$p_hat,
+  names.arg = 1:6,
+  xlab = "Outcome",
+  ylab = "Probability",
+  main = paste0("ME estimates  (S = ", round(fit$S, 3), ")"),
+  col  = "steelblue"
+)
+abline(h = 1/6, lty = 2, col = "red")
+legend("topleft", legend = "Uniform (1/6)", lty = 2, col = "red", bty = "n")
+```
+
+### Adding a second moment constraint
+
+Adding E[X²] = 25 (higher variance) further constrains the distribution:
+
+```{r die-two-moments}
+X2 <- rbind(1:6, (1:6)^2)
+y2 <- c(4.5, 25)
+
+fit2 <- me(y = y2, X = X2)
+summary(fit2)
+```
+
+With two constraints, S drops — the data are more informative. Both moment
+constraints are satisfied up to numerical precision.
+
+### Cross-Entropy with a non-uniform prior
+
+When prior information is available, the CE formulation incorporates it by
+minimizing D(p‖q) relative to the prior q rather than the uniform
+distribution.
+
+```{r ce}
+# Prior: belief that the die is biased toward high numbers
+q_prior <- c(0.05, 0.08, 0.12, 0.18, 0.27, 0.30)
+sum(q_prior)  # must sum to 1
+
+fit_ce <- me(y = 4.5, X = matrix(1:6, nrow = 1), q = q_prior)
+
+# Compare ME (uniform prior) vs CE (informative prior)
+rbind(
+  ME = round(fit$p_hat, 4),
+  CE = round(fit_ce$p_hat, 4)
+)
+```
+
+The CE solution shifts probability mass toward outcomes favored by the prior,
+relative to the ME solution.
+
+---
+
+## 3. Support space construction
+
+Support spaces bound the parameter and error vectors in GME/GCE estimation
+(Phase 2). The `make_support()` function creates symmetric M-point grids.
+
+```{r supports}
+# 5-point symmetric support for an error term: [-3, -1.5, 0, 1.5, 3]
+make_support(half_range = 3, M = 5)
+
+# Data-driven supports from OLS (for use in GME)
+set.seed(42)
+n <- 100; K <- 3
+Xreg <- cbind(1, matrix(rnorm(n * (K - 1)), n, K - 1))
+yreg <- Xreg %*% c(1, 2, -1) + rnorm(n)
+
+sp <- default_supports(yreg, Xreg)
+cat("Signal support Z (row = coefficient):\n")
+print(round(sp$Z, 3))
+cat("\nError support V:\n")
+print(round(sp$V, 3))
+```
+
+The default signal supports are centered on OLS estimates with half-range
+equal to 2×|OLS estimate|. The error support uses the three-sigma rule
+(Pukelsheim 1994), spanning ±3 OLS residual standard deviations.
+
+---
+
+## 4. Inference
+
+The `summary()` method reports the full inference output including the
+entropy-ratio test statistic W, which under H₀ (all parameters = 0) converges
+to χ²(K-1):
+
+```{r inference}
+# Loaded die with strong evidence (mean = 5.5, far from uniform)
+fit_strong <- me(y = 5.5, X = matrix(1:6, nrow = 1))
+summary(fit_strong)
+```
+
+A high W statistic and low p-value indicate the data strongly reject the
+null of a uniform distribution, pulling the estimates away from complete
+ignorance.
+
+---
+
+## References
+
+Golan, A. (2008). Information and Entropy Econometrics — A Review and
+Synthesis. *Foundations and Trends in Econometrics*, **2**(1–2), 1–145.
+
+Jaynes, E.T. (1957). Information theory and statistical mechanics.
+*Physical Review*, **106**, 620–630.
+
+Cressie, N. and Read, T.R.C. (1984). Multinomial goodness-of-fit tests.
+*Journal of the Royal Statistical Society B*, **46**, 440–464.
+
+Kullback, S. and Leibler, R.A. (1951). On information and sufficiency.
+*Annals of Mathematical Statistics*, **22**, 79–86.
+
+Pukelsheim, F. (1994). The three sigma rule.
+*The American Statistician*, **48**, 88–91.

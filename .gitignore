@@ -1,0 +1,22 @@
+# R session / history
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+
+# RStudio
+.Rproj.user/
+*.Rproj
+
+# R CMD build / check artifacts
+*.Rcheck/
+..Rcheck/
+*.tar.gz
+/docs/
+
+# Claude Code local settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,35 @@
+Package: infometrics
+Type: Package
+Title: Information-Theoretic Methods for Econometric Estimation
+Version: 0.2.0
+Date: 2026-05-17
+Authors@R: person("Author", "Name",
+    email = "author@example.com",
+    role = c("aut", "cre"))
+Description: Implements the class of Information-Theoretic (IT) estimators
+    for econometric models, following the unified framework of Golan (2008).
+    Provides entropy measures (Shannon, Kullback-Leibler, Renyi, Tsallis,
+    Cressie-Read) and the classical Maximum Entropy (ME) and Cross-Entropy
+    (CE) estimators in both primal (constrained) and dual (concentrated)
+    form. The dual concentrated formulation is used by default for
+    computational efficiency. Inference tools include normalized entropy,
+    entropy-ratio statistics, and pseudo-R-squared measures. Also provides
+    the Generalized Maximum Entropy (GME) and Generalized Cross-Entropy (GCE)
+    regression estimators via a single gme() function.
+License: GPL-3
+URL: https://github.com/author/infometrics
+BugReports: https://github.com/author/infometrics/issues
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.1.0)
+Imports:
+    stats
+Suggests:
+    nloptr,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
