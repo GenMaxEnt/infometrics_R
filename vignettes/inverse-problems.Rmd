@@ -1,0 +1,330 @@
+---
+title: "Pure Inverse Problems: Maximum Entropy and Cross-Entropy"
+author: "Ganbaatar Jambal"
+date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    base_format: rmarkdown::html_vignette
+    number_sections: true
+bibliography: references.bib
+csl: apa.csl
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Pure Inverse Problems: Maximum Entropy and Cross-Entropy}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, comment = "#>")
+```
+
+# The pure inverse problem
+
+Suppose we face the following inverse problem
+
+\begin{equation}
+  \mathbf{y} = \mathbf{X}\mathbf{p}
+  (\#eq:inverse-moment)
+\end{equation}
+
+where $\mathbf{y} = (y_1, \dots, y_T)'$ is a $T$-dimensional vector of
+observations (moments), $\mathbf{X}$ is a known $(T \times K)$ matrix, and
+$\mathbf{p} = (p_1, \dots, p_K)'$ is a $K$-dimensional vector of unknown
+probabilities. The goal is to recover $\mathbf{p}$, but in many cases this task
+is not directly feasible --- for example, when $\mathbf{X}$ has no inverse. A
+classical example is the **under-determined** case in which the number of
+observations is smaller than the number of unknowns, $T < K$. There are then
+infinitely many $\mathbf{p}$ consistent with \@ref(eq:inverse-moment), so we
+need a criterion to select among them.
+
+Throughout, `inverse_ce()` solves exactly this problem through its concentrated
+(dual) formulation.
+
+```{r lib}
+library(infometrics)
+```
+
+# Maximum entropy
+
+Following @shannon1948mathematical, [@jaynes1957information_a;
+@jaynes1957information_b], and @levine1980information, one natural criterion is
+to choose the $\mathbf{p}$ that maximises the Shannon entropy
+
+\begin{equation}
+  H(\mathbf{p}) = -\sum_{k=1}^K p_k \log(p_k),
+  (\#eq:shannon-entropy)
+\end{equation}
+
+with the convention $p_k \log(p_k) = 0$ whenever $p_k = 0$. Entropy
+\@ref(eq:shannon-entropy) is maximised **when** $\mathbf{p}$ is uniform, i.e.
+$p_k = 1/K$ for all $k$, so maximising it selects the least committal
+distribution consistent with the data. We also impose the additivity
+(normalization) constraint
+
+\begin{equation}
+  \sum_{k=1}^K p_k = 1.
+  (\#eq:additivity)
+\end{equation}
+
+We therefore maximise \@ref(eq:shannon-entropy) subject to
+\@ref(eq:inverse-moment) and \@ref(eq:additivity). Writing the moment residual
+as $\big(\sum_k p_k x_{tk} - y_t\big)$, the Lagrangian is
+
+\begin{equation}
+  \mathcal{L} = -\sum_{k=1}^K p_k \log(p_k)
+    + \sum_{t=1}^T \lambda_t\!\left(\sum_{k=1}^K p_k x_{tk} - y_t\right)
+    + \mu\!\left(1 - \sum_{k=1}^K p_k\right),
+  (\#eq:me-lagrange)
+\end{equation}
+
+where the $\lambda_t$ and $\mu$ are Lagrange multipliers. The multiplier
+$\lambda_t$ measures the **information content** of moment $t$: if
+$\lambda_t = 0$, the $t$-th moment carries no information and dropping it would
+not change the solution or the level of remaining uncertainty. The
+first-order conditions are
+
+\begin{equation}
+  \begin{aligned}
+  \frac{\partial \mathcal{L}}{\partial p_k}
+    &= -\log(p_k) - 1 + \sum_{t=1}^T \lambda_t x_{tk} - \mu = 0,
+    & k &= 1,\dots,K,\\
+  \frac{\partial \mathcal{L}}{\partial \lambda_t}
+    &= \sum_{k=1}^K p_k x_{tk} - y_t = 0,
+    & t &= 1,\dots,T,\\
+  \frac{\partial \mathcal{L}}{\partial \mu}
+    &= 1 - \sum_{k=1}^K p_k = 0.
+  \end{aligned}
+  (\#eq:me-foc)
+\end{equation}
+
+Solving the first condition and imposing \@ref(eq:additivity) gives the
+exponential-family solution
+
+\begin{equation}
+  \hat{p}_k = \frac{\exp\!\big(\sum_t \hat\lambda_t x_{tk}\big)}
+                   {\sum_{k'} \exp\!\big(\sum_t \hat\lambda_t x_{tk'}\big)}
+            = \frac{\exp\!\big(\sum_t \hat\lambda_t x_{tk}\big)}{\Omega(\hat{\boldsymbol\lambda})},
+  (\#eq:me-phat)
+\end{equation}
+
+where $\Omega(\boldsymbol\lambda) = \sum_k \exp\!\big(\sum_t \lambda_t x_{tk}\big)$
+is the normalization factor, usually called the **partition function**.
+Substituting \@ref(eq:me-phat) back into \@ref(eq:me-lagrange) --- the
+normalization is already satisfied, so the $\mu$ term drops --- yields the
+**concentrated (dual) model**
+
+\begin{equation}
+  M(\boldsymbol\lambda) = -\sum_t \lambda_t y_t + \log \Omega(\boldsymbol\lambda),
+  (\#eq:me-dual)
+\end{equation}
+
+which is **minimised** over the $T$-dimensional vector $\boldsymbol\lambda$. This
+is exactly the objective `inverse_ce()` solves, so the reported `lambda_hat`
+and `objective` correspond one-to-one with $\hat{\boldsymbol\lambda}$ and
+$M(\hat{\boldsymbol\lambda})$ here. Working in $\boldsymbol\lambda$-space
+(dimension $T$) rather than $\mathbf{p}$-space (dimension $K \gg T$) is the key
+computational advantage of the dual [@golan2008information].
+
+## Solving with `inverse_ce()`
+
+Consider a six-sided die for which we know only that the mean roll is $4.5$
+(rather than the fair $3.5$). Which distribution over the faces
+$\{1,\dots,6\}$ is most consistent with that single moment while assuming as
+little as possible? In `inverse_ce()`'s formula interface the **response is the
+moment vector** and each right-hand-side term is a **state** (a face); `- 1`
+drops the intercept.
+
+```{r me-die}
+dice <- data.frame(y = 4.5,
+                   s1 = 1, s2 = 2, s3 = 3, s4 = 4, s5 = 5, s6 = 6)
+fit_me <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 + s6 - 1, data = dice)
+round(coef(fit_me), 4)          # p_hat over the six faces
+```
+
+The moment condition \@ref(eq:inverse-moment) is satisfied exactly, and the
+recovered distribution is the flattest one compatible with a mean of $4.5$:
+
+```{r me-check}
+sum(1:6 * coef(fit_me))          # reproduces the mean 4.5
+c(H_phat = shannon_entropy(coef(fit_me)), H_max = log(6))
+```
+
+# Cross-entropy: incorporating a prior
+
+If we hold prior beliefs about the data-generating process, summarised by a
+distribution $\mathbf{p}^0 = (p_1^0, \dots, p_K^0)'$, we can incorporate them
+through the **cross-entropy** (Kullback--Leibler) divergence
+[@kullback1974information; @levine1980information; @shore1980axiomatic;
+@csiszar1991least]
+
+\begin{equation}
+  D(\mathbf{p} \,\Vert\, \mathbf{p}^0) = \sum_{k=1}^K p_k \log(p_k / p_k^0),
+  (\#eq:ce-entropy)
+\end{equation}
+
+which measures the divergence of $\mathbf{p}$ from the prior $\mathbf{p}^0$. We
+now **minimise** \@ref(eq:ce-entropy) subject to the same constraints
+\@ref(eq:inverse-moment) and \@ref(eq:additivity). The analogous derivation
+gives
+
+\begin{equation}
+  \hat{p}_k = \frac{p_k^0 \exp\!\big(\sum_t \hat\lambda_t x_{tk}\big)}
+                   {\sum_{k'} p_{k'}^0 \exp\!\big(\sum_t \hat\lambda_t x_{tk'}\big)}
+            = \frac{p_k^0 \exp\!\big(\sum_t \hat\lambda_t x_{tk}\big)}{\Omega(\hat{\boldsymbol\lambda})},
+  (\#eq:ce-phat)
+\end{equation}
+
+with $\Omega(\boldsymbol\lambda) = \sum_k p_k^0 \exp\!\big(\sum_t \lambda_t x_{tk}\big)$.
+Maximum entropy is the special case of \@ref(eq:ce-phat) with a **uniform
+prior** $p_k^0 = 1/K$: the constant $1/K$ cancels between numerator and
+denominator and \@ref(eq:ce-phat) collapses to \@ref(eq:me-phat). The
+concentrated dual has the same form as \@ref(eq:me-dual), only the partition
+function changes, so `inverse_ce()` needs a single implementation for both:
+uniform `p0` gives ME, a non-uniform `p0` gives CE (hence the name).
+
+Since the divergence \@ref(eq:ce-entropy) is non-negative, a strictly positive
+value means the data carried information beyond the prior. Following
+[@zellner1988optimal; @zellner1991bayesian], \@ref(eq:ce-phat) can be read as an
+efficient information-processing rule that combines prior and data into a
+posterior.
+
+## The ME special case, and a genuine prior
+
+First, the uniform-prior identity --- passing an explicit uniform `p0`
+reproduces the maximum-entropy fit:
+
+```{r ce-uniform}
+fit_unif <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 + s6 - 1,
+                       data = dice, p0 = rep(1 / 6, 6))
+max(abs(coef(fit_unif) - coef(fit_me)))     # ~ 0: ME == CE(uniform prior)
+```
+
+Now a genuine prior that leans toward high faces. Cross-entropy pulls the fit
+toward `p0` while still matching the observed mean of $4.5$:
+
+```{r ce-prior}
+p0_load <- c(.05, .05, .10, .15, .25, .40)  # prior beliefs favouring high faces
+fit_ce  <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 + s6 - 1,
+                      data = dice, p0 = p0_load)
+round(rbind(ME = coef(fit_me), CE = coef(fit_ce)), 4)
+sum(1:6 * coef(fit_ce))                      # still satisfies the mean moment
+```
+
+# The information matrix and standard errors
+
+The gradient of the dual \@ref(eq:me-dual) returns the moment condition
+\@ref(eq:inverse-moment), and its Hessian is the **Fisher information matrix**
+for $\boldsymbol\lambda$,
+
+\begin{equation}
+  \big[\mathbf{I}(\boldsymbol\lambda)\big]_{st}
+    = \frac{\partial^2 M}{\partial \lambda_s\, \partial \lambda_t}
+    = \sum_k x_{sk} x_{tk}\, \hat p_k
+      - \Big(\sum_k x_{sk}\hat p_k\Big)\Big(\sum_k x_{tk}\hat p_k\Big)
+    = \mathrm{Cov}_{\hat p}(\mathbf{x}_s, \mathbf{x}_t),
+  (\#eq:info-matrix)
+\end{equation}
+
+i.e. the covariance of the moment functions under the fitted distribution
+$\hat{\mathbf p}$ (Golan Eq. 4.7). The diagonal elements are the variances
+$\mathrm{Var}_{\hat p}(\mathbf{x}_t)$; the off-diagonal elements ($s \neq t$)
+are the covariances $\mathrm{Cov}_{\hat p}(\mathbf{x}_s, \mathbf{x}_t)$. As
+shown in Chapter 17 of @cover2006elements and @golan2008information (p. 59), the
+same matrix can be recovered from the local curvature of the cross-entropy. The
+variance--covariance matrix of $\hat{\boldsymbol\lambda}$ is its inverse,
+
+\begin{equation}
+  \mathrm{Var}(\hat{\boldsymbol\lambda}) = \mathbf{I}^{-1}(\boldsymbol\lambda),
+  (\#eq:vcov-lambda)
+\end{equation}
+
+and a delta-method step propagates it to $\hat{\mathbf p}$. **These are
+curvature / identification quantities, not sampling standard errors**: a pure
+inverse problem is deterministic, so they describe how sharply the moments pin
+down $\boldsymbol\lambda$, not sampling variability. For sampling inference, use
+the stochastic-moment sibling `inverse_noise()`.
+
+## Curvature-based standard errors from `inverse_ce()`
+
+To obtain a full $\mathbf{I}(\boldsymbol\lambda)$ we use two moments: the mean
+and the second moment of the faces. We generate consistent moments from a
+reference distribution (the recovered $\hat{\mathbf p}$ will still be the
+*maximum-entropy* distribution matching them, not that reference).
+
+```{r info-2mom}
+faces  <- 1:6
+p_ref  <- c(.10, .12, .15, .18, .20, .25)
+Xm     <- rbind(faces, faces^2)                 # 2 moments x 6 states
+ym     <- as.numeric(Xm %*% p_ref)              # feasible (mean, 2nd moment)
+d2 <- data.frame(y  = ym,
+                 s1 = Xm[, 1], s2 = Xm[, 2], s3 = Xm[, 3],
+                 s4 = Xm[, 4], s5 = Xm[, 5], s6 = Xm[, 6])
+fit2 <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 + s6 - 1, data = d2)
+summary(fit2)
+```
+
+The stored `vcov()` is $\mathbf{I}^{-1}$; `se_lambda` and `se_p` are the square
+roots of its (propagated) diagonals:
+
+```{r info-se}
+vcov(fit2)                       # I^{-1}, the T x T dual covariance
+fit2$se_lambda                   # sqrt(diag(vcov)) for lambda
+fit2$se_p                        # delta-method curvature SEs for p_hat
+```
+
+By \@ref(eq:info-matrix), a moment whose function has a larger variance under
+$\hat{\mathbf p}$ contributes more curvature and so receives a **smaller**
+`se_lambda`. When a moment row is constant, collinear, or the system reaches
+$T \ge K$, $\mathbf{I}(\boldsymbol\lambda)$ is singular; `inverse_ce()` then
+rank-checks the inverse and returns `NA` for the affected standard errors
+rather than a misleadingly finite pseudo-inverse value.
+
+# Normalized entropy and Fano bounds
+
+The **normalized entropy** summarises how much uncertainty remains after
+conditioning on the data. Relative to a uniform reference it is
+
+\begin{equation}
+  S(\hat{\mathbf p}) = \frac{-\sum_k \hat p_k \log(\hat p_k)}{\log(K)} \in [0, 1],
+  (\#eq:me-Sp)
+\end{equation}
+
+equal to $1$ under complete ignorance (uniform $\hat{\mathbf p}$) and $0$ under
+perfect certainty (a point mass). With a genuine prior it generalises to the
+prior-relative form $S = H(\hat{\mathbf p}) / H(\mathbf{p}^0)$,
+
+\begin{equation}
+  S(\hat{\mathbf p}) = \frac{-\sum_k \hat p_k \log(\hat p_k)}
+                            {-\sum_k p_k^0 \log(p_k^0)},
+  (\#eq:ce-Sp)
+\end{equation}
+
+which is what `inverse_ce()` reports as `fit$S`:
+
+```{r Sp}
+c(ME = fit_me$S, CE = fit_ce$S)
+```
+
+The recovered $\hat{\mathbf p}$ is a single distribution over $K$ states, so
+Golan's Fano inequality applies directly: the modal-classification error
+$p_e = 1 - \max_k \hat p_k$ is bounded below by $S_u(\hat{\mathbf p}) -
+\log(2)/\log(K)$, where $S_u = H(\hat{\mathbf p})/\log(K)$ is the
+uniform-reference normalized entropy. `fano_bounds()` returns these quantities:
+
+```{r fano}
+fano_bounds(fit2)
+```
+
+# From exact to noisy moments
+
+Everything above treats the moments in \@ref(eq:inverse-moment) as holding
+**exactly**. When the moments are instead measured with noise ---
+$\mathbf{y} = \mathbf{X}\mathbf{p} + \boldsymbol\varepsilon$ --- the problem
+becomes a *generalized* maximum-entropy / cross-entropy problem, and the
+multipliers acquire genuine **sampling** standard errors. That stochastic-moment
+sibling is `inverse_noise()`, which shares `inverse_ce()`'s formula interface
+and adds a noise support and signal/noise weight. As the noise support shrinks
+to zero, its estimates converge to the `inverse_ce()` solution developed here.
+
+# References

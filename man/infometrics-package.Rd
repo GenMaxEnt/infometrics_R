@@ -25,17 +25,17 @@ Synthesis. \emph{Foundations and Trends in Econometrics}, \strong{2}(1-2),
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/author/infometrics}
-  \item Report bugs at \url{https://github.com/author/infometrics/issues}
+  \item \url{https://github.com/GenMaxEnt/infometrics_R}
+  \item Report bugs at \url{https://github.com/GenMaxEnt/infometrics_R/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Author Name \email{author@example.com}
+\strong{Maintainer}: Ganbaatar Jambal \email{jg3169a@gmail.com}
 
 Authors:
 \itemize{
-  \item Author Name \email{author@example.com}
+  \item Ganbaatar Jambal \email{jg3169a@gmail.com}
 }
 
 }

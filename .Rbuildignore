@@ -8,3 +8,6 @@
 ^\.git$
 ^\.gitignore$
 ^\.github$
+^doc$
+^Meta$
+^vignettes/.*\.html$
