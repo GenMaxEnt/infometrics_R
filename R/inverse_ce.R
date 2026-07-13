@@ -1,12 +1,9 @@
 # inverse_ce.R
 # Pure (exact-moment) inverse problem via Maximum Entropy / Cross-Entropy,
-# solved through the concentrated (dual) model. Formula interface sibling of
-# me(): the response is the moment vector and each right-hand-side term is a
-# state / support point.
-#
-# (inverse_pure() is retained as a deprecated alias -- see the bottom of this
-# file. The cross-entropy method is what the name inverse_ce() now reflects:
-# a uniform prior p0 gives Maximum Entropy, a non-uniform p0 gives Cross-Entropy.)
+# solved through the concentrated (dual) model. Formula interface: the response
+# is the moment vector and each right-hand-side term is a state / support point.
+# A uniform prior p0 gives Maximum Entropy, a non-uniform p0 gives Cross-Entropy
+# (hence the name).
 #
 # References:
 #   Golan, A. (2008). Information and Entropy Econometrics -- A Review and
@@ -37,14 +34,13 @@
 #' Kullback-Leibler divergence) to a prior \code{p0} subject to the T pure
 #' moment constraints \eqn{y = X p}, by solving the unconstrained dual
 #' (concentrated) model of Golan (2008, Section 4.2). This is the
-#' \code{\link[stats]{lm}}-style formula sibling of \code{\link{me}}: both solve
-#' the same maximum-entropy / cross-entropy problem and return identical
-#' estimates for the same data. A uniform prior \code{p0} gives Maximum Entropy;
+#' \code{\link[stats]{lm}}-style formula interface to the maximum-entropy /
+#' cross-entropy problem, where a uniform prior \code{p0} gives Maximum Entropy;
 #' a non-uniform \code{p0} gives Cross-Entropy (hence the name).
 #'
 #' @details
 #' The dual concentrated objective (Golan 2008, Eq. 4.4-4.5), minimised here to
-#' match the package convention used by \code{\link{me}}, is
+#' match the package's dual sign convention, is
 #' \deqn{\ell(\lambda) = -\sum_t \lambda_t y_t + \log \Omega(\lambda),}
 #' with partition function
 #' \eqn{\Omega(\lambda) = \sum_k p_{0,k} \exp(\sum_t \lambda_t x_{tk})}. Minimising
@@ -76,7 +72,7 @@
 #' row is constant/collinear or \eqn{T \ge K} (its rank is at most \eqn{K-1});
 #' there the affected SEs are returned as \code{NA} rather than a pseudo-inverse's
 #' misleadingly finite value. For sampling-based inference use the
-#' stochastic-moment \code{\link{gme}} / \code{\link{inverse_noise}}.
+#' stochastic-moment \code{\link{inverse_noise}}.
 #'
 #' @section Formula orientation:
 #' Unlike a regression, the response is the vector of \emph{moments} and each
@@ -138,11 +134,9 @@
 #'   2(1-2), 1-145. Section 4.2. Cover, T. M. & Thomas, J. A. (2006).
 #'   \emph{Elements of Information Theory}, 2nd ed., Ch. 17.
 #'
-#' @seealso \code{\link{me}} for the matrix/vector interface to the same
-#'   ME/CE estimator; \code{\link{gme}} and \code{\link{inverse_noise}} for the
-#'   stochastic-moment (GME/GCE) estimators that report sampling standard errors;
-#'   \code{\link{fano_bounds}} for the Fano error bound on the recovered \code{p}.
-#'   \code{inverse_pure()} is a deprecated alias for \code{inverse_ce()}.
+#' @seealso \code{\link{inverse_noise}} for the stochastic-moment (GME/GCE)
+#'   estimator that reports sampling standard errors; \code{\link{fano_bounds}}
+#'   for the Fano error bound on the recovered \code{p}.
 #'
 #' @examples
 #' # Recover a 5-state distribution from 2 exact moment constraints.
@@ -232,7 +226,7 @@ inverse_ce <- function(formula, data, p0 = NULL,
 
   ## ---- dual objective (Eq. 4.4) and analytic gradient (Eq. 4.6) ----------
   ## Minimised convex objective: ell(lambda) = -lambda'y + log Omega(lambda).
-  ## Equivalent to maximising entropy; matches me()'s sign convention.
+  ## Equivalent to maximising entropy; uses the minimise-form sign convention.
   obj  <- function(lambda) { z <- .z(lambda); -sum(lambda * y) + .logOmega(z) }
   grad <- function(lambda) as.vector(X %*% .probs(.z(lambda)) - y)
 
@@ -407,7 +401,7 @@ print.summary.inverse_ce <- function(x,
       "is deterministic). ",
       if (isTRUE(x$singular))
         "I(lambda) is singular here (constant/collinear moments\nor T >= K), so the SEs are NA. " else "",
-      "For sampling-based inference use the\nstochastic-moment gme() / inverse_noise().\n",
+      "For sampling-based inference use the\nstochastic-moment inverse_noise().\n",
       sep = "")
   invisible(x)
 }
@@ -447,28 +441,4 @@ print.summary.inverse_ce <- function(x,
 fano_bounds.inverse_ce <- function(object, ...) {
   p <- object$p_hat
   .fano_row_bounds(matrix(p, 1L, length(p)), length(p))
-}
-
-## ----------------------------------------------------------------------------
-## Deprecated alias
-## ----------------------------------------------------------------------------
-
-#' @describeIn inverse_ce Deprecated alias for \code{inverse_ce()}; forwards all
-#'   arguments and returns an \code{inverse_ce} object (with a deprecation
-#'   warning). The historical prior argument \code{q} is still accepted and
-#'   mapped to \code{p0}.
-#' @export
-inverse_pure <- function(formula, data, p0 = NULL,
-                         subset, na.action,
-                         control = list(), ..., q = NULL) {
-  .Deprecated("inverse_ce")
-  cl <- match.call()
-  cl[[1L]] <- quote(inverse_ce)
-  ## map the historical prior name 'q' -> 'p0'
-  if ("q" %in% names(cl)) {
-    if ("p0" %in% names(cl))
-      stop("Supply only one of 'p0' (preferred) or the deprecated 'q'.")
-    names(cl)[names(cl) == "q"] <- "p0"
-  }
-  eval(cl, parent.frame())
 }

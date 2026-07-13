@@ -146,6 +146,5 @@ panel data regression models. \emph{Communications for Statistical
 Applications and Methods}, \strong{21}(5), 395-409.
 }
 \seealso{
-\code{\link{gme}}, \code{\link{linreg}} for the (non-panel) GME/GCE
-  regression.
+\code{\link{linreg}} for the (non-panel) GME/GCE regression.
 }

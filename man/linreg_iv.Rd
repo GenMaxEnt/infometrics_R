@@ -63,7 +63,7 @@ reparameterized on a bounded signal support, \eqn{\beta_k = \sum_m z_{km}
 p_{km}}, and each error on a noise support, \eqn{e_i = \sum_j v_j w_{ij}}; the
 signal and noise entropies are maximized subject to the instrument moments,
 with weight \eqn{\nu \in (0,1)}. It is the instrumental-variables sibling of
-\code{\link{linreg}} / \code{\link{gme}}.
+\code{\link{linreg}}.
 }
 \details{
 The concentrated dual is maximized over the Lagrange multipliers \eqn{\lambda}
@@ -100,6 +100,5 @@ Golan, A. (2008). \emph{Information and Entropy Econometrics -
   1-145. Pages 89-91.
 }
 \seealso{
-\code{\link{linreg}}, \code{\link{gme}} for the (non-IV) GME/GCE
-  regression.
+\code{\link{linreg}} for the (non-IV) GME/GCE regression.
 }

@@ -1,19 +1,32 @@
-# infometrics (development version)
+# infometrics 0.3.0
+
+## Package scope reduced for CRAN submission
+
+The package now focuses on the Generalized Maximum Entropy (GME) and
+Generalized Cross-Entropy (GCE) estimator family. The following functions were
+**removed**: `me()`, `gme()`, `me_mnl()`, `gme_mnl()`, `gce_clogit()`,
+`gce_clogitWrap()`, and `gce_table()`. The retained estimators are
+`inverse_ce()`, `inverse_noise()`, `linreg()`, `linreg_iv()`, `panel_gce()`,
+`matrix_ce()`, `matrix_gce()`, `markov_ce()`, `markov_gce()`,
+`multinomial_gce()`, and `mixed_gce()`.
+
+The `entropy.R` module was trimmed to `shannon_entropy()`; the divergence
+measures `kl_divergence()`, `renyi_entropy()`, `renyi_divergence()`,
+`tsallis_divergence()`, `cressie_read()`, and `normalized_entropy()` were
+removed. The deprecated `inverse_pure()` alias was also dropped &mdash; use
+`inverse_ce()` directly.
 
 ### `inverse_ce()` (was `inverse_pure()`)
 
 * `inverse_pure()` has been **renamed to `inverse_ce()`** (the method is
   cross-entropy: a uniform prior gives ME, a non-uniform prior gives CE).
-  `inverse_pure()` remains as a **deprecated alias** that forwards to
-  `inverse_ce()` with a warning.
 * `inverse_ce()` now reports **information-matrix standard errors**
   `Var(lambda) = I^-1` (`se_lambda`, `vcov()`) and delta-method `se_p`, plus
   **`fano_bounds()`** for the recovered `p`. These are curvature/identification
   quantities (Golan 2008, sec 4.2), not sampling SEs; `NA`/`NULL` when the
   information matrix is singular.
 * The prior argument was **renamed from `q` to `p0`** (the GME/GCE signal-prior
-  name; for `inverse_ce` it is a K-vector prior over the states). The deprecated
-  `inverse_pure()` alias still accepts the legacy `q` and maps it to `p0`.
+  name; for `inverse_ce` it is a K-vector prior over the states).
 * Output cleanup: removed duplicate fields (kept `p_hat`/`lambda_hat`/`objective`/
   `p0`); dropped `converged` (the raw `convergence` code is kept).
 

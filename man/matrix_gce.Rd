@@ -44,7 +44,9 @@ Default uniform; its column count must match \code{length(v)}.}
 \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 500) and
 \code{reltol} (default 1e-12).}
 
-\item{object, x}{A \code{matrix_gce} object (\code{x} in \code{print}).}
+\item{object}{A \code{matrix_gce} object (\code{x} in \code{print}).}
+
+\item{...}{Additional arguments passed to or from methods (currently ignored).}
 
 \item{digits}{Significant digits to print.}
 }
@@ -69,7 +71,7 @@ minimized relative to priors \code{p0}, \code{w0}.
 }
 \details{
 The dual is minimised here (convex) to match the package convention used by
-\code{\link{gme}}, \code{\link{inverse_noise}} and \code{\link{matrix_ce}}:
+\code{\link{inverse_noise}} and \code{\link{matrix_ce}}:
 \deqn{
   \ell(\lambda) = -\sum_i \lambda_i y_i + \nu \sum_j \log\Omega_j(\lambda)
        + (1-\nu)\sum_i \log\Psi_i(\lambda),

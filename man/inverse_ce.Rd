@@ -9,7 +9,6 @@
 \alias{print.inverse_ce}
 \alias{summary.inverse_ce}
 \alias{print.summary.inverse_ce}
-\alias{inverse_pure}
 \title{Pure Inverse Problem via Cross-Entropy (Formula Interface)}
 \usage{
 inverse_ce(formula, data, p0 = NULL, subset, na.action, control = list(), ...)
@@ -27,17 +26,6 @@ inverse_ce(formula, data, p0 = NULL, subset, na.action, control = list(), ...)
 \method{summary}{inverse_ce}(object, ...)
 
 \method{print}{summary.inverse_ce}(x, digits = max(3L, getOption("digits") - 3L), ...)
-
-inverse_pure(
-  formula,
-  data,
-  p0 = NULL,
-  subset,
-  na.action,
-  control = list(),
-  ...,
-  q = NULL
-)
 }
 \arguments{
 \item{formula}{A model formula. The response is the moment vector \code{y};
@@ -101,14 +89,13 @@ Estimates the K-dimensional distribution \code{p} closest (in
 Kullback-Leibler divergence) to a prior \code{p0} subject to the T pure
 moment constraints \eqn{y = X p}, by solving the unconstrained dual
 (concentrated) model of Golan (2008, Section 4.2). This is the
-\code{\link[stats]{lm}}-style formula sibling of \code{\link{me}}: both solve
-the same maximum-entropy / cross-entropy problem and return identical
-estimates for the same data. A uniform prior \code{p0} gives Maximum Entropy;
+\code{\link[stats]{lm}}-style formula interface to the maximum-entropy /
+cross-entropy problem, where a uniform prior \code{p0} gives Maximum Entropy;
 a non-uniform \code{p0} gives Cross-Entropy (hence the name).
 }
 \details{
 The dual concentrated objective (Golan 2008, Eq. 4.4-4.5), minimised here to
-match the package convention used by \code{\link{me}}, is
+match the package's dual sign convention, is
 \deqn{\ell(\lambda) = -\sum_t \lambda_t y_t + \log \Omega(\lambda),}
 with partition function
 \eqn{\Omega(\lambda) = \sum_k p_{0,k} \exp(\sum_t \lambda_t x_{tk})}. Minimising
@@ -142,11 +129,6 @@ is \eqn{\nabla^2 \ell = X \,\mathrm{diag}(p)\, X' - (Xp)(Xp)' =
 \itemize{
 \item \code{print(summary.inverse_ce)}: Print method for the summary object.
 
-\item \code{inverse_pure()}: Deprecated alias for \code{inverse_ce()}; forwards all
-arguments and returns an \code{inverse_ce} object (with a deprecation
-warning). The historical prior argument \code{q} is still accepted and
-mapped to \code{p0}.
-
 }}
 \section{Information-matrix standard errors}{
 
@@ -168,7 +150,7 @@ inverse problem is deterministic. \eqn{I(\lambda)} is singular when a moment
 row is constant/collinear or \eqn{T \ge K} (its rank is at most \eqn{K-1});
 there the affected SEs are returned as \code{NA} rather than a pseudo-inverse's
 misleadingly finite value. For sampling-based inference use the
-stochastic-moment \code{\link{gme}} / \code{\link{inverse_noise}}.
+stochastic-moment \code{\link{inverse_noise}}.
 }
 
 \section{Formula orientation}{
@@ -210,9 +192,7 @@ Golan, A. (2008). \emph{Information and Entropy Econometrics -
   \emph{Elements of Information Theory}, 2nd ed., Ch. 17.
 }
 \seealso{
-\code{\link{me}} for the matrix/vector interface to the same
-  ME/CE estimator; \code{\link{gme}} and \code{\link{inverse_noise}} for the
-  stochastic-moment (GME/GCE) estimators that report sampling standard errors;
-  \code{\link{fano_bounds}} for the Fano error bound on the recovered \code{p}.
-  \code{inverse_pure()} is a deprecated alias for \code{inverse_ce()}.
+\code{\link{inverse_noise}} for the stochastic-moment (GME/GCE)
+  estimator that reports sampling standard errors; \code{\link{fano_bounds}}
+  for the Fano error bound on the recovered \code{p}.
 }

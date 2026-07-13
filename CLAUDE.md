@@ -27,26 +27,19 @@ All Phase 1 code lives in `R/`, tests in `tests/testthat/`.
 
 | File | Contents | Status |
 |---|---|---|
-| `R/entropy.R` | `shannon_entropy`, `kl_divergence`, `renyi_entropy`, `renyi_divergence`, `tsallis_divergence`, `cressie_read`, `normalized_entropy` | ✅ complete, 18/18 tests passing |
-| `R/me.R` | `me()` — ME/CE estimator, primal + dual; S3 class `infometrics_me` with `print`, `summary`, `coef`, `fitted`, `residuals` | ✅ complete |
+| `R/entropy.R` | `shannon_entropy` (+ internal `.check_prob`); trimmed to the one measure the retained estimators depend on | ✅ complete |
 | `R/inverse_ce.R` | `inverse_ce()` — ME/CE pure inverse problem via the dual concentrated model, **formula interface** (lm-style); now reports **information-matrix SEs** `Var(λ)=I⁻¹` (`se_lambda`, `vcov`) + delta-method `se_p` and **`fano_bounds`** for the recovered `p`; S3 class `c("inverse_ce", "infometrics")` with `print`, `summary`, `coef`, `fitted`, `residuals`, `vcov`, `fano_bounds` (+ `print.summary.inverse_ce`). De-duplicated output (keeps `p_hat`/`lambda_hat`/`objective`/`p0`; dropped `converged`); prior arg is **`p0`** (renamed from `q`). `inverse_pure()` is a **deprecated alias** (still accepts legacy `q`). See "inverse_ce" below | ✅ complete, 68/68 tests passing |
 | `R/matrix_ce.R` | `matrix_ce()` — CE/ME **matrix balancing** (Golan §7.2): recovers an n×m column-stochastic matrix from column weights `x` and row aggregates `y` (`y = Px`, `colSums = 1`) via the dual; S3 class `c("matrix_ce", "infometrics")` with `print`, `summary` (Golan §7.5 information measures + ER test), `coef`, `fitted`, `residuals` (+ `print.summary.matrix_ce`). **Genuinely new estimator** (not a duplicate) — see "matrix_ce" below | ✅ complete, 42/42 tests passing |
 | `R/markov_ce.R` | `markov_ce()` — CE estimation of a first-order **Markov transition matrix** from a balanced long panel (Golan §7.7.1): K×K row-stochastic `P` from one-hot or compositional-share states, optional lead/lagged covariates; internal `.markov_arrays()` panel reshaper; S3 class `c("markov_ce", "infometrics")` with `print`, `summary`, `coef`, `fitted`, `residuals` (+ `print.summary.markov_ce`). **Genuinely new estimator** — see "markov_ce" below | ✅ complete, 31/31 tests passing |
 | `R/utils.R` | `normalize_data`, `make_support`, `default_supports` | ✅ complete |
-| `DESCRIPTION` | Package metadata, v0.2.0 | ✅ complete |
+| `DESCRIPTION` | Package metadata, v0.3.0 | ✅ complete |
 | `NAMESPACE` | Exports and S3 registrations | ✅ complete |
 | `NEWS.md` | Changelog | ✅ complete |
-| `vignettes/infometrics-intro.Rmd` | Intro vignette; §2.1 dual ME by hand (Jaynes dice), §2.2 `me()` | ✅ complete |
 
 ### Phase 2 — COMPLETE (`v0.2.0`)
 
 | File | Contents | Status |
 |---|---|---|
-| `R/gme.R` | `gme()` — GME/GCE regression estimator, dual only; S3 class `infometrics_gme` with `print`, `summary`, `coef`, `fitted`, `residuals`, `vcov` | ✅ complete, 23/23 tests passing |
-| `R/gme_mnl.R` | `me_mnl()`, `gme_mnl()` — multinomial ME and GME/GCE; S3 classes `infometrics_me_mnl`, `infometrics_gme_mnl` | ✅ complete |
-| `tests/testthat/test-gme_mnl.R` | 18 tests covering convergence, moment constraints, entropy bounds, S3 methods, input validation | ✅ complete |
-| `R/gce_clogit.R` | `gce_clogit()` — conditional/mixed logit GCE (mlogit-style formula); S3 class `infometrics_clogit` | ✅ complete, 36/36 tests passing |
-| `tests/testthat/test-gce_clogit.R` | 36 tests covering convergence, design dimensions, gradient, formula variants, prob validity, entropy bounds, GME==GCE, S3 methods, input validation | ✅ complete |
 | `R/inverse_noise.R` | `inverse_noise()` — noisy (stochastic-moment) GME/GCE inverse problem via the dual concentrated model, **formula interface** (lm-style); now reports **sampling SEs** for `lambda_hat`/`p_hat` by `se_method`/`vcov(type=)`/`summary(se_method=)` ∈ {`sandwich` (default), `delta`, `bootstrap`}, **signal + noise normalized entropy** (`S`/`S_w`), and **`fano_bounds`** for `p_hat`; de-duplicated output (keeps `p_hat`/`lambda_hat`/`w_hat`/`residuals`/`objective`; dropped `converged`); S3 class `c("inverse_noise", "infometrics")` with `print`, `summary` (p-table w/ SE+t), `coef`, `fitted`, `residuals`, `vcov`, `fano_bounds` (+ `print.summary.inverse_noise`). See "inverse_noise" below | ✅ complete, 80/80 tests passing |
 | `tests/testthat/test-inverse_noise.R` | 80 tests covering convergence, noisy moment condition (residuals = recovered noise), shrink-to-pure limit, GME vs GCE, support-width effect, PD Hessian, de-dup (dropped aliases absent), signal+noise normalized entropy, SEs (sandwich stored/finite, vcov(type=) shapes, delta≫sandwich, bootstrap≈sandwich band, se_method=none), Fano bounds (weak+strong), scalar-v support, input validation, S3 methods (p-table SE+t, entropy+Fano lines, alt se_method) | ✅ complete |
 | `R/linreg.R` | `linreg()` — GCE **linear regression** (`y = Xβ + e`), **formula interface** (lm-style) with `predict`, `r.squared`, and an **entropy-ratio (ER) `summary`** (per-coefficient χ²(1) ER test + overall slopes test, via restricted refits); S3 class `c("linreg", "infometrics")` with `coef`, `fitted`, `residuals`, `vcov`, `predict`, `print`, `summary` (+ `print.summary.linreg`). Internal solver factored into `.linreg_engine()` (reused by the ER refits) with `.linreg_Hstar()`. **Same estimator as `gme()`** — see "linreg vs gme" below | ✅ complete, 51/51 tests passing |
@@ -59,7 +52,7 @@ All Phase 1 code lives in `R/`, tests in `tests/testthat/`.
 | `tests/testthat/test-multinomial_gce.R` | 62 tests covering convergence, exact `gme_mnl` reproduction, recovery, nu/v effects, prior shift, `which_alternative` near-invariance, input validation, S3 methods, canonical aliases, `margins` vs a numerical derivative, **Fano bounds (weak + strong inequalities hold), and margins SEs (sandwich default ≈ bootstrap, delta identity, sandwich < delta ordering)** | ✅ complete |
 | `R/linreg_iv.R` | `linreg_iv()` — **stochastic-moments GME-IV** regression (Golan §pp.89-91): IV sibling of `linreg`/`gme`, moment `IV'(y−Xβ−e)=0`, `β = Zp`; supports over-identification; S3 class `c("linreg_iv", "infometrics")` with `coef` (→ β), `fitted`, `residuals`, `print`, `summary`. **Genuinely new estimator** — see "linreg_iv" below | ✅ complete, 29/29 tests passing |
 | `tests/testthat/test-linreg_iv.R` | 29 tests covering convergence/moment satisfaction, OLS recovery (IV=X), 2SLS recovery (endogeneity correction), over-identification, support shrinkage, input validation, canonical aliases, S3 methods | ✅ complete |
-| `R/panel_gce.R` | `panel_gce()` — dual **GME/GCE for the one-way error-components panel model** `y_nt = x_nt'β + μ_n + ε_nt` (Lee & Cheon 2014, eq. 3.12): the panel/individual-effects sibling of `gme`/`linreg`. Three reparameterized blocks — coefficients `β = Zp` (support `Z`, prior `p0`), **individual effects** `μ_n = Σ_r f_nr g_nr` (support `FF`, prior `g0`), errors `e_nt = Σ_j v_j w_ntj` (support `v`, prior `w0`) — solved via the concentrated dual over `λ` (length N·T), weight `nu`; `period`/`unit` layouts. **Standard errors** (Golan §3.3) for β/p/μ via `vcov_type` + delta method; S3 class `c("panel_gce", "infometrics")` with `coef` (→ β), `vcov`, `fitted`, `residuals`, `print`, `summary` (ER-style coef table w/ z & p-values). **Genuinely new estimator** — see "panel_gce" below | ✅ complete, 44/44 tests passing |
+| `R/panel_gce.R` | `panel_gce()` — dual **GME/GCE for the one-way error-components panel model** `y_nt = x_nt'β + μ_n + ε_nt` (Lee & Cheon 2014, eq. 3.12): the panel/individual-effects sibling of `linreg`. Three reparameterized blocks — coefficients `β = Zp` (support `Z`, prior `p0`), **individual effects** `μ_n = Σ_r f_nr g_nr` (support `FF`, prior `g0`), errors `e_nt = Σ_j v_j w_ntj` (support `v`, prior `w0`) — solved via the concentrated dual over `λ` (length N·T), weight `nu`; `period`/`unit` layouts. **Standard errors** (Golan §3.3) for β/p/μ via `vcov_type` + delta method; S3 class `c("panel_gce", "infometrics")` with `coef` (→ β), `vcov`, `fitted`, `residuals`, `print`, `summary` (ER-style coef table w/ z & p-values). **Genuinely new estimator** — see "panel_gce" below | ✅ complete, 44/44 tests passing |
 | `tests/testthat/test-panel_gce.R` | 44 tests covering FOC/convergence, within (fixed-effects) recovery (both layouts), individual-effects recovery (`cor(μ̂,μ)>0.9`), directional prior shift + narrow-support shrinkage, **SE surface (vcov PD/symmetric, se_beta/se_p/se_mu finite, μ finite-T floor, vcov_type ordering, se_p delta identity, p-value column)**, input validation, canonical aliases + S3 methods | ✅ complete |
 | `R/mixed_gce.R` | `mixed_gce()` — **doubly-reparameterized GCE "mixed" model**: response `Y` (N×J shares), design `X` (N×J×K); the signal probability is *itself* reparameterized on a support `s∈[0,1]` (`θ_ijm ∝ θ0 exp(s_m(V_ij+ρ_i)/ν)`, `V_ij=Σ_k X_ijk λ_kj`, `p_ij=Σ_m s_m θ_ijm`), adding-up `Σ_j p_ij=1` via a per-obs multiplier `ρ_i`; noise `w_ijh ∝ w0 exp(u_h V_ij/(1−ν))`. Concentrated dual maximized over `(ρ,λ)`; flexible `s`/`u` (NULL/count/vector); dual-Hessian SEs. S3 class `c("mixed_gce", "infometrics")` with `coef` (→ λ), `fitted`, `residuals`, `vcov`, `print`, `summary`, `margins` (**now with robust-sandwich SEs**), `fano_bounds` (**Fano error bounds for p_hat**, Golan §7.5). **Genuinely new estimator** — see "mixed_gce" below | ✅ complete, 72/72 tests passing |
 | `tests/testthat/test-mixed_gce.R` | 72 tests covering FOC/convergence, normalization + probability/fiber validity, moment satisfaction, shrink-to-pure recovery of λ*/Pstar, GME==GCE-uniform + prior shift, flexible s/u forms, dual-Hessian SEs (PD/finite), margins vs central-difference derivative, **Fano bounds (weak+strong), margins sandwich SEs (≪ naive Hessian, ≈ bootstrap)**, input validation, canonical aliases + S3 methods | ✅ complete |
@@ -67,55 +60,21 @@ All Phase 1 code lives in `R/`, tests in `tests/testthat/`.
 Uniform priors (`p0 = NULL`, `w0 = NULL`) → GME (max entropy).
 User-supplied priors → GCE (min cross-entropy). One function, not two.
 
-**Conditional logit model** (`gce_clogit.R`):
-- `gce_clogit(formula, data, alt, id, M, v, p0, w0, ...)` — GCE (or GME with
-  uniform priors) for the conditional logit / mixed logit where the design
-  matrix `Z_{ij}` varies by both individual `i` and alternative `j`.
-  Class `c("infometrics_clogit", "infometrics")`.
-- **Data format**: long format, one row per (individual, alternative) pair.
-  Columns: alternative id (`alt`), individual id (`id`), binary choice
-  indicator, and predictor variables.
-- **Formula interface** (mlogit-style): `chosen ~ choice_specific | individual_specific`
-  - Part 1 (left of `|`): choice-specific variables with a **generic** coefficient
-    (one `beta` shared across all alternatives, e.g. `price`, `catch`).
-  - Part 2 (right of `|`): individual-specific variables with **alternative-specific**
-    coefficients (one `gamma_j` per non-reference alternative, e.g. `income`).
-  - Use `0` to suppress either part: `y ~ price | 0` or `y ~ 0 | income`.
-- **Parameter structure**: K = (J−1) ASCs + K_cs generic coefs + (J−1)×K_is
-  alt-specific coefs. All K parameters are free (no normalization column).
-  Lambda is a K-vector; `beta = -lambda` (ML-logit convention).
-- **Dual objective**: same convex form as `gme_mnl` but with the N×J×K design
-  array `Z[i,j,]` replacing the standard design matrix:
-  `V_ij = Z[i,j,]' lambda`;  then `P_i = softmax(-V_i)` per individual.
-- **Warm start**: by default, initializes from the ME conditional logit
-  solution (`.clogit_me_raw`), which equals standard MNL MLE at the clogit
-  optimum, using the full K-vector `lambda_ME` directly.
-- `loglik = -fit$value` (GCE objective negated; larger = better, R convention).
-- Object fields: `beta`, `lambda`, `se_beta`, `vcov` (K×K), `p_hat` (N×J),
-  `w_hat` (N×J×M), `e` (N×J), `y_mat` (N×J), `Z` (N×J×K), `P0`, `W0`, `v`,
-  `loglik`, `S_p`, `S_w`, `KL_p`, `KL_w`, `H_signal`, `H_error`, `converged`.
-
-**Multinomial model** (`gme_mnl.R`):
-- `me_mnl(formula, data, ...)` — ME multinomial logit (dual formulation,
-  equivalent to standard MNL MLE). Class `c("infometrics_me_mnl", "infometrics")`.
-- `gme_mnl(formula, data, M, v, p0, w0, ...)` — GME (uniform priors) or
-  GCE (user priors) for unordered multinomial response. Class
-  `c("infometrics_gme_mnl", "infometrics")`. Uses `me_mnl` warm start by default.
-- Lambda parameterisation: K×J matrix, column 1 = 0 (normalisation).
-  `beta = -lambda` (ML-logit convention); `SE(beta) = SE(lambda)`.
-- Error support `v`: default = symmetric M-point grid on `[-1/√N, 1/√N]`.
-- Both classes carry `p_hat`, `lambda_hat`, `H_signal`, `S`, `objective`,
-  `converged`, `method`, `call`. `gme_mnl` additionally carries `w_hat`,
-  `H_error`, `S_w`, `KL_p`, `KL_w`.
+**Scope note (v0.3.0).** The standalone `me()`, `gme()`, `me_mnl()`,
+`gme_mnl()`, `gce_clogit()`, `gce_clogitWrap()`, and `gce_table()` functions were
+**removed** for the CRAN submission, along with the divergence measures in
+`entropy.R` (only `shannon_entropy` is retained) and the deprecated
+`inverse_pure()` alias. The retained estimators are `inverse_ce`,
+`inverse_noise`, `linreg`, `linreg_iv`, `panel_gce`, `matrix_ce`, `matrix_gce`,
+`markov_ce`, `markov_gce`, `multinomial_gce`, and `mixed_gce`. Multinomial
+GME/GCE is now provided by `multinomial_gce()` (matrix interface) and
+`mixed_gce()`.
 
 ### Phase 3 — NOT STARTED
 Target: `R/inference.R`
 - Entropy-ratio test, Wald test, large deviation bounds
-- `predict.infometrics_gme()`, `confint.infometrics_gme()`
-- `predict.infometrics_gme_mnl()` — in-sample and out-of-sample probabilities
-- `predict.infometrics_clogit()` — in-sample and out-of-sample choice probabilities
-- Note: `vcov.infometrics_gme()` is already implemented in Phase 2.
-- Note: `vcov` for `gce_clogit` is already computed (Hessian inverse) in Phase 2.
+- `predict()` / `confint()` methods for the retained estimator classes
+  (`linreg` already provides `predict`).
 
 ### Phase 4 — NOT STARTED
 CRAN submission preparation: extended tests, `R CMD check` clean pass,
@@ -129,8 +88,8 @@ full vignette with GME replication examples.
 All estimators solve the **dual (unconstrained) concentrated model** by
 default, working in Lagrange multiplier space (dimension T) rather than
 probability space (dimension K >> T). This follows Golan (2008, Section 4.2,
-Eq. 4.4–4.5) and is computationally superior. The primal (constrained)
-form is always available via `method = "primal"` using `nloptr`.
+Eq. 4.4–4.5) and is computationally superior. All retained estimators use the
+dual form exclusively.
 
 The dual objective for ME/CE is:
 ```
@@ -158,52 +117,34 @@ Never compute `exp(exponents)` directly without this stabilization.
 
 ### Optimizer choice
 - **Dual model**: `stats::optim(method = "BFGS")` with analytic gradient.
-  No extra package dependency. This is the default.
-- **Primal model**: `nloptr` with `NLOPT_LD_SLSQP`. Listed in `Suggests:`,
-  not `Imports:` — the package must load without it.
+  No extra package dependency. This is the solver for every estimator.
 
 ### S3 class hierarchy
 All estimator output objects inherit from `"infometrics"`:
-- `me()` returns class `c("infometrics_me", "infometrics")`
-- `inverse_ce()` returns class `c("inverse_ce", "infometrics")` (`inverse_pure()` is a deprecated alias)
+- `inverse_ce()` returns class `c("inverse_ce", "infometrics")`
+- `inverse_noise()` returns class `c("inverse_noise", "infometrics")`
+- `linreg()` returns class `c("linreg", "infometrics")`
+- `linreg_iv()` returns class `c("linreg_iv", "infometrics")`
+- `panel_gce()` returns class `c("panel_gce", "infometrics")`
 - `matrix_ce()` returns class `c("matrix_ce", "infometrics")`
-- `markov_ce()` returns class `c("markov_ce", "infometrics")`
 - `matrix_gce()` returns class `c("matrix_gce", "infometrics")`
+- `markov_ce()` returns class `c("markov_ce", "infometrics")`
 - `markov_gce()` returns class `c("markov_gce", "infometrics")`
 - `multinomial_gce()` returns class `c("multinomial_gce", "infometrics")`
 - `mixed_gce()` returns class `c("mixed_gce", "infometrics")`
-- `linreg_iv()` returns class `c("linreg_iv", "infometrics")`
-- `panel_gce()` returns class `c("panel_gce", "infometrics")`
-- `inverse_noise()` returns class `c("inverse_noise", "infometrics")`
-- `linreg()` returns class `c("linreg", "infometrics")`
-- `gme()` returns class `c("infometrics_gme", "infometrics")`
-- `me_mnl()` returns class `c("infometrics_me_mnl", "infometrics")`
-- `gme_mnl()` returns class `c("infometrics_gme_mnl", "infometrics")`
-- `gce_clogit()` returns class `c("infometrics_clogit", "infometrics")`
 
-There is no separate `infometrics_gce` class. `gme()` subsumes GCE via
-the `p0` and `w0` arguments, exactly as `me()` subsumes CE via `q`.
-Same principle applies to `gme_mnl()` and `gce_clogit()`.
+Each estimator subsumes GCE via its signal/noise prior arguments (`p0`, `w0`):
+uniform priors → GME (max entropy), user priors → GCE (min cross-entropy). One
+function per estimator family — there is no separate `gce_*` class.
 
-**`inverse_ce()` vs `me()`** — both solve the *same* pure-moment ME/CE dual
-(Golan §4.2) and return identical estimates for the same data. They are
-deliberate siblings, distinguished only by interface, not by estimator family
-(the name reflects the method: uniform prior ⇒ ME, non-uniform ⇒ CE):
-- `me(y, X, q)` — matrix/vector interface; requires `K > T` (errors otherwise).
-  Its prior arg is `q`.
-- `inverse_ce(formula, data, p0)` — lm-style formula interface where the
-  response is the moment vector and each RHS term is a state (use `- 1` to drop
-  the intercept). *Warns* (does not error) when `K ≤ T + 1`. Adds the analytic
-  T×T dual Hessian `Cov_p(moments)` (Eq. 4.7). **Its prior arg is `p0`** (by
-  user instruction, renamed from `q` — a K-vector prior over the states; unlike
-  the GME/GCE K×M `p0`, but the same *role*, the signal prior). `inverse_ce`
-  minimises `-λ'y + log Ω(λ)` without `fnscale`, matching `me()`'s sign
-  convention, so `lambda_hat` is identical between the two. (So the two siblings
-  now use different prior arg names: `me()` = `q`, `inverse_ce()` = `p0`.)
-- **Deprecated alias `inverse_pure()`** — thin wrapper that `.Deprecated`-warns
-  and forwards all args to `inverse_ce()` (returns an `inverse_ce` object, so all
-  methods work). Kept for backward compatibility (was the name through v0.2.0);
-  it still accepts the **historical prior arg `q`** and maps it to `p0`.
+**`inverse_ce()`** — solves the pure-moment ME/CE dual (Golan §4.2) through an
+`lm`-style formula interface: the response is the moment vector and each RHS
+term is a state (use `- 1` to drop the intercept). *Warns* (does not error) when
+`K ≤ T + 1`. Adds the analytic T×T dual Hessian `Cov_p(moments)` (Eq. 4.7). Its
+prior arg is **`p0`** (a K-vector prior over the states — the same *role* as the
+GME/GCE signal prior, though a vector rather than a K×M matrix). `inverse_ce`
+minimises `-λ'y + log Ω(λ)` without `fnscale`. Uniform prior ⇒ ME, non-uniform
+⇒ CE (hence the name).
 
 **Information-matrix SEs + Fano bounds for `inverse_ce` (Golan §4.2/§7.5, from
 `pure_inverse.Rmd`)** — two honest add-ons that use quantities the estimator
@@ -222,7 +163,7 @@ has a **smaller** `se_lambda_t` — verified). The inverse is **rank-checked via
 pseudo-inverse's misleadingly finite value). `summary()` prints a p-table
 (`Estimate | Std. Error`) and a λ-table (`Estimate | Std. Error | z value`, no
 p-value) with the "curvature not sampling" note; for sampling inference use
-`gme()`/`inverse_noise()`. (2) **`fano_bounds.inverse_ce`** — the recovered `p`
+`inverse_noise()`. (2) **`fano_bounds.inverse_ce`** — the recovered `p`
 is one distribution over K states, so Golan's §7.5 Fano bound applies directly
 (the companion to `S`): modal error `pe = 1−max_k p_k ≥ S(p)−ln2/ln(K)` with
 `S(p)=H(p)/ln(K)` (uniform-reference, **distinct** from `inverse_ce`'s
@@ -358,11 +299,10 @@ exact-moment gap, *expected nonzero* — absorbed by the noise). As `v→0` or
 over-identified exact problem is unbounded — documented in `@section Choosing nu
 and v`).
 
-**`multinomial_gce()` vs `gme_mnl()`** — `multinomial_gce()` is the **nu-weighted
-GCE multinomial** of Golan-Judge-Perloff (1996) with a **matrix `(y, X)`
-interface**; at `nu = 0.5`, `which_alternative = 1`, and a matched support it
-**reproduces `gme_mnl()` exactly** (same paper/estimator — a `linreg`-vs-`gme`
-style **deliberate standalone duplicate**, kept by user instruction). New parts:
+**`multinomial_gce()`** — the **nu-weighted GCE multinomial** of
+Golan-Judge-Perloff (1996) with a **matrix `(y, X)` interface**. (Through v0.2.0
+it had a formula-interface twin `gme_mnl()`, since removed; at `nu = 0.5`,
+`which_alternative = 1`, and a matched support the two agreed exactly.) New parts:
 the `nu` signal/noise weight, the matrix interface, and `which_alternative` (the
 reference normalized to `λ = 0`). The uploaded draft had ~10 bugs (parse error,
 undefined `e`/`w`, `v`/`mm` scoping, non-scalar objective, gradient dimension,
@@ -458,7 +398,7 @@ question); `summary()` now prints a caveat pointing to `margins(se=TRUE)` for
 accurate ME SEs. See [[gme-se-validation]].
 
 **`linreg_iv()`** — the **stochastic-moments GME estimator for instrumental-
-variables regression** (Golan 2008, pp. 89–91), the IV sibling of `linreg`/`gme`.
+variables regression** (Golan 2008, pp. 89–91), the IV sibling of `linreg`.
 Model `y = Xβ + e` identified by instrument moments `IV'(y − Xβ − e) = 0`, with
 `β = Zp` (signal support `Z`, K×M) and `e = vw`. Dual over the P instrument
 multipliers `λ`: `p_km ∝ p0_km exp(z_km (X'IVλ)_k/ν)`, `w_ij ∝ w0_ij exp((IVλ)_i
@@ -550,12 +490,10 @@ validated against the maximise form — identical `p` and `w`), matching `gme()`
 H0: P = P0 — **preserved verbatim from the uploaded code**. As `v → 0` the
 signal converges to the `matrix_ce` solution.
 
-**`linreg()` vs `gme()`** — `linreg()` fits `y = Xβ + e` by GCE, which is the
-**same estimator** as `gme()` (same concentrated dual, same `nu` weight, same
-Golan p. 96 asymptotic `vcov`). It is a **deliberate standalone duplicate**,
-kept by explicit user instruction, that adds lm-style conveniences `gme()` does
-not yet have: a `predict()` method, `r.squared`, and an **entropy-ratio (ER)
-`summary()`**. The ER summary reports, per coefficient, an ER test of
+**`linreg()`** — fits `y = Xβ + e` by GCE (the concentrated dual, `nu` weight,
+and Golan p. 96 asymptotic `vcov`) with an lm-style interface: a `predict()`
+method, `r.squared`, and an **entropy-ratio (ER) `summary()`**. (Through v0.2.0
+this shared its estimator with the now-removed `gme()`.) The ER summary reports, per coefficient, an ER test of
 H0: β_k = 0 (Golan §6.4/§6.6): `ER_k = 2[H*_unrestricted − H*_restricted,k]`
 with `H* = Σ H(p) + Σ H(w)`, restricted fit zeroing row k of the signal support
 `Z`, `ER_k ~ χ²(1)`; plus an overall test of H0: all coefficients (intercept and
@@ -565,21 +503,17 @@ inline solver was factored into the internal engine `.linreg_engine(X, y, Z, p0,
 v, w0, nu, con, init)` (the main fit and the K+1 warm-started restricted refits
 share it) plus `.linreg_Hstar(p, w)`; ER can be slightly negative (collapsing a
 support row raises that coef's entropy to its prior max) so it is clamped at 0.
-To make refits faithful, `linreg()` now **stores the resolved `Z`, `p0`, `v`,
-`w0`, `X`, `y`, `control`** on the object (more than `gme()`, which stores only
-`Z`/`V`). It keeps its **own argument names** — notably lowercase `v` for the
-noise support where `gme()` uses uppercase `V` — and otherwise follows the same
-conventions (`Z`, `p0`, `w0`, `nu`; uniform priors → GME, user priors → GCE;
-minimised convex dual; PD Hessian). This is a conscious exception to the "one
-function per estimator family" rule; the two are flagged for possible Phase 3/4
-reconciliation (e.g. making one a thin wrapper of the other, or porting
-`predict`/ER-`summary`/`r.squared` into `gme()` and deprecating `linreg`).
+To make refits faithful, `linreg()` **stores the resolved `Z`, `p0`, `v`,
+`w0`, `X`, `y`, `control`** on the object. Its **argument names** use lowercase
+`v` for the noise support, and otherwise follow the package conventions (`Z`,
+`p0`, `w0`, `nu`; uniform priors → GME, user priors → GCE; minimised convex
+dual; PD Hessian).
 `linreg()` carries both `p_hat` (K×M) and `w_hat` (T×J); its `H_signal` is the
 K-vector of per-coefficient signal entropies (like `gme()`).
 
 **`panel_gce()`** — dual **GME/GCE for the one-way error-components panel model**
 `y_nt = x_nt'β + μ_n + ε_nt` (Lee & Cheon 2014, *CSAM* 21(5), eq. 3.12), the
-panel/individual-effects sibling of `gme`/`linreg`. Three reparameterized
+panel/individual-effects sibling of `linreg`. Three reparameterized
 blocks are recovered jointly: the coefficients `β_k = Σ_m z_km p_km` (support
 `Z` K×M, prior `p0`), the **individual effects** `μ_n = Σ_r f_nr g_nr` (support
 `FF` N×R, prior `g0`), and the errors `e_nt = Σ_j v_j w_ntj` (support `v`, prior
@@ -622,9 +556,8 @@ optimum.
 Every estimator object must contain at minimum:
 `p_hat`, `lambda_hat`, `H_signal`, `S`, `objective`, `converged`, `method`, `call`.
 
-`me()`, `inverse_ce()`, `matrix_ce()`, `markov_ce()`, and `me_mnl()` carry
-`p_hat` (no `w_hat`). `gme()`,
-`gme_mnl()`, `gce_clogit()`, `inverse_noise()`, `linreg()`, `matrix_gce()`,
+`inverse_ce()`, `matrix_ce()`, and `markov_ce()` carry
+`p_hat` (no `w_hat`). `inverse_noise()`, `linreg()`, `matrix_gce()`,
 `multinomial_gce()`, `linreg_iv()`, `panel_gce()`, and `mixed_gce()` carry both
 `p_hat` and `w_hat` (for `multinomial_gce`, `coef()` returns `lambda`, not a
 `beta` — by user instruction; for `linreg_iv`, `coef()` returns `β = Zp`, and
@@ -651,14 +584,6 @@ aliases. `inverse_noise()`
 and `S`/`S_p`/`S_w`, the SE fields `se_lambda`/`se_p`/`vcov_lambda`/`se_method`,
 and `X`/`y`/`control` (for SE recompute/bootstrap); it **drops** `converged`
 (keeps `convergence`) and the `p`/`lambda`/`w`/`e`/`value` aliases.
-
-For the multinomial estimators (`me_mnl`, `gme_mnl`), `lambda_hat` is the
-K×J Lambda matrix (column 1 = 0 normalization). `H_signal` is an N-vector
-of per-observation signal entropies. `S` = normalised total entropy.
-
-For `gce_clogit`, `lambda_hat` is a K-vector (all K params free, no
-normalization column). `H_signal` is an N×J matrix of per-(individual,
-alternative) signal entropies. `loglik = -objective` (negated for R convention).
 
 ### Support spaces
 Support spaces Z (for β) and V (for ε) are the user's most consequential
@@ -715,7 +640,7 @@ for optional packages.
 ## Testing conventions
 
 Tests live in `tests/testthat/`, one file per source file:
-`test-entropy.R`, `test-me.R`, `test-utils.R`, `test-gme.R` (Phase 2), etc.
+`test-entropy.R`, `test-utils.R`, `test-linreg.R`, `test-inverse_ce.R`, etc.
 
 ### What every test file must cover
 1. **Known analytical results** — test against closed-form truths (e.g.,
@@ -774,7 +699,8 @@ well-scaled problems. Use `tolerance = 1e-4` for moment satisfaction checks,
 - [ ] `Description:` field in `DESCRIPTION` is two or more complete sentences
   and contains no URLs
 - [ ] Package title does not start with "A" or "The"
-- [ ] `LICENSE` file present (GPL-3)
+- [ ] For `License: GPL-3`, do NOT ship a `LICENSE` file (CRAN provides the
+  standard GPL text; a bundled copy triggers a NOTE)
 - [ ] `BugReports:` and `URL:` fields populated in `DESCRIPTION`
 
 ---
@@ -785,13 +711,11 @@ well-scaled problems. Use `tolerance = 1e-4` for moment satisfaction checks,
   designed to be pure R for simplicity and portability.
 - Do not change the default solver from BFGS dual to anything else without
   benchmarking and updating this file.
-- Do not move `nloptr` from `Suggests:` to `Imports:` — the package must
-  load cleanly without it.
 - Do not hard-code support spaces inside estimator functions — always expose
   them as user arguments with documented defaults.
 - Do not use `set.seed()` inside any exported function.
 - Do not write vignette code that requires internet access or takes more than
   30 seconds to run.
-- Do not create a separate `gce()` function. `gme()` subsumes GCE via the
-  `p0` and `w0` arguments (uniform priors → GME), exactly as `me()` subsumes
-  CE via `q`. One function per estimator family.
+- Do not create separate `gce_*` twins of the GME estimators. Each estimator
+  subsumes GCE via its `p0`/`w0` prior arguments (uniform priors → GME). One
+  function per estimator family.

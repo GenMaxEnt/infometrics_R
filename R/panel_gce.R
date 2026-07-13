@@ -3,7 +3,7 @@
 #   y_nt = x_nt' beta + mu_n + eps_nt
 # following Lee & Cheon (2014, CSAM 21(5)), eq. (3.12), extended with priors
 # (p0, g0, w0) and the signal/noise weight nu. Panel/individual-effects sibling
-# of gme()/linreg(): three reparameterized blocks solved by the concentrated
+# of linreg(): three reparameterized blocks solved by the concentrated
 # dual over the N*T Lagrange multipliers lambda.
 #
 #   beta_k = sum_m z_km p_km,   p_km  prop to p0_km  exp( z_km (X'lambda)_k / nu )
@@ -126,8 +126,7 @@
 #' panel data regression models. \emph{Communications for Statistical
 #' Applications and Methods}, \strong{21}(5), 395-409.
 #'
-#' @seealso \code{\link{gme}}, \code{\link{linreg}} for the (non-panel) GME/GCE
-#'   regression.
+#' @seealso \code{\link{linreg}} for the (non-panel) GME/GCE regression.
 #'
 #' @examples
 #' set.seed(1)

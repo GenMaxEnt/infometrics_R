@@ -24,14 +24,6 @@ test_that("converges, row-stochastic, gradient ~ 0 at optimum", {
   expect_lt(max(abs(gr)), 1e-3)
 })
 
-test_that("reproduces gme_mnl exactly at nu=0.5 with a matched support", {
-  d <- make_mnl()
-  vN <- seq(-1 / sqrt(d$n), 1 / sqrt(d$n), length.out = 3)
-  f <- multinomial_gce(d$Y, d$X, 1L, v = vN, nu = 0.5)
-  g <- gme_mnl(factor(d$yc) ~ x, data = data.frame(yc = d$yc, x = d$x), v = vN)
-  expect_lt(max(abs(f$p_hat - g$p_hat)), 1e-5)         # correctness anchor (BFGS tol)
-})
-
 test_that("recovers the data-generating probabilities", {
   d <- make_mnl()
   vN <- seq(-1 / sqrt(d$n), 1 / sqrt(d$n), length.out = 3)

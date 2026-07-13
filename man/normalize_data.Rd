@@ -27,7 +27,7 @@ Golan (2008, Section 7.1) notes that normalization is often necessary when
 data contain exponential terms (as in the partition function Omega), since
 the concentrated (dual) ME/CE model involves expressions of the form
 exp(lambda * x). A common normalization is dividing each element by
-max{x_j, y_i}.
+max\{x_j, y_i\}.
 }
 \examples{
 x <- c(10, 30, 50, 20, 40)

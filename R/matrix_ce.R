@@ -28,7 +28,7 @@
 #'
 #' @details
 #' The dual is minimised here (convex) to match the package convention used by
-#' \code{\link{me}} and \code{\link{inverse_ce}}:
+#' \code{\link{inverse_ce}}:
 #' \deqn{\ell(\lambda) = -\sum_i \lambda_i y_i + \sum_j \log\Omega_j(\lambda),}
 #' minimised over the \eqn{n} row multipliers (equivalent to maximising the
 #' column entropies subject to the data). The problem is typically
@@ -50,7 +50,8 @@
 #'
 #' @param y Numeric vector of length n: the row-weighted aggregates
 #'   \eqn{y_i = \sum_j p_{ij} x_j}.
-#' @param x Numeric vector of length m: the column weights.
+#' @param x Numeric vector of length m: the column weights (in \code{print},
+#'   the fitted \code{matrix_ce} object).
 #' @param p0 Optional n-by-m matrix of strictly-positive prior probabilities
 #'   whose columns sum to 1. Defaults to uniform (\code{1/n}).
 #' @param control A named list merged over the defaults and passed to
@@ -73,8 +74,7 @@
 #'   A Review and Synthesis}. Foundations and Trends in Econometrics,
 #'   2(1-2), 1-145. Section 7.2.
 #'
-#' @seealso \code{\link{me}} for the vector (single-distribution) ME/CE
-#'   estimator; \code{\link{inverse_ce}} for the formula-interface
+#' @seealso \code{\link{inverse_ce}} for the formula-interface
 #'   pure-moment ME/CE estimator.
 #'
 #' @examples
@@ -184,7 +184,8 @@ matrix_ce <- function(y, x, p0 = NULL, control = list()) {
 ## ----------------------------------------------------------------------------
 
 #' @describeIn matrix_ce Estimated probability matrix \eqn{\hat p} (n x m).
-#' @param object,x A \code{matrix_ce} object (\code{x} in \code{print}).
+#' @param object A \code{matrix_ce} object.
+#' @param ... Additional arguments passed to or from methods (currently ignored).
 #' @export
 coef.matrix_ce <- function(object, ...) object$p
 

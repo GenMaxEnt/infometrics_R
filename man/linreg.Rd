@@ -111,11 +111,11 @@ As the supports widen the GCE estimates approach OLS; narrower supports
 shrink \eqn{\beta} toward the support centers.
 
 
-This is the same estimator family as \code{\link{gme}} (GCE regression),
-exposed with an lm-style interface that adds a \code{\link{predict}} method,
+This fits the Generalized Cross-Entropy (GCE) linear regression estimator
+with an lm-style interface, adding a \code{\link{predict}} method,
 an \code{lm}-style coefficient table, and \code{r.squared}. The dual is
 minimised here (convex) to match the package convention used by
-\code{\link{gme}}, \code{\link{inverse_ce}} and \code{\link{inverse_noise}};
+\code{\link{inverse_ce}} and \code{\link{inverse_noise}};
 this is equivalent to maximising the joint signal-plus-noise entropy. Uniform
 priors (\code{p0 = NULL}, \code{w0 = NULL}) give GME; user priors give GCE.
 
@@ -172,6 +172,6 @@ Golan, A. (2008). \emph{Information and Entropy Econometrics -
   2(1-2), 1-145. Section 6.1.
 }
 \seealso{
-\code{\link{gme}} (the matrix/regression sibling of this estimator),
-  \code{\link{inverse_ce}}, \code{\link{inverse_noise}}.
+\code{\link{inverse_ce}}, \code{\link{inverse_noise}} for related
+  information-theoretic estimators.
 }
