@@ -1,6 +1,6 @@
 # linreg_iv.R
 # (Relaxed) stochastic-moments GME estimator for instrumental-variables
-# regression (Golan 2008, pp. 89-91). IV sibling of linreg()/gme().
+# regression (Golan 2008, pp. 89-91). IV sibling of linreg().
 #
 # Model y = X beta + e, identified by instrument moments IV'(y - X beta - e) = 0,
 # with beta = Z p (signal support Z, K x M) and e = v w (error support v),
@@ -68,7 +68,7 @@
 #' p_{km}}, and each error on a noise support, \eqn{e_i = \sum_j v_j w_{ij}}; the
 #' signal and noise entropies are maximized subject to the instrument moments,
 #' with weight \eqn{\nu \in (0,1)}. It is the instrumental-variables sibling of
-#' \code{\link{linreg}} / \code{\link{gme}}.
+#' \code{\link{linreg}}.
 #'
 #' @details
 #' The concentrated dual is maximized over the Lagrange multipliers \eqn{\lambda}
@@ -118,8 +118,7 @@
 #'   A Review and Synthesis}. Foundations and Trends in Econometrics, 2(1-2),
 #'   1-145. Pages 89-91.
 #'
-#' @seealso \code{\link{linreg}}, \code{\link{gme}} for the (non-IV) GME/GCE
-#'   regression.
+#' @seealso \code{\link{linreg}} for the (non-IV) GME/GCE regression.
 #'
 #' @examples
 #' set.seed(1)

@@ -14,8 +14,8 @@
 #   dual (MAXIMISED): sum(Y*eta) - nu sum_i logOmega_i - (1-nu) sum_ij logPsi_ij
 #   gradient (free block): X'(Y - P - E)[, -which_alternative]
 #
-# Same estimator family as gme_mnl() (= it at nu=0.5, matched support, ref 1);
-# kept as a deliberate standalone with its own argument names per user
+# The GJP multinomial GME/GCE estimator (through v0.2.0 it had a formula-
+# interface twin, gme_mnl(), since removed); its own argument names per user
 # instruction, and the maximise form (fnscale = -1) by user choice. coef()
 # returns lambda (the multipliers), not a transformed beta (user instruction).
 #
@@ -37,6 +37,14 @@
   } else {
     cbind(lambda, z)
   }
+}
+
+# ---- internal: default error support --------------------------------------
+
+#' @keywords internal
+.mnl_default_support <- function(N, M = 3L) {
+  scale <- 1 / sqrt(N)
+  seq(-scale, scale, length.out = M)
 }
 
 # ---- internal: stable signal / noise pieces --------------------------------
@@ -155,7 +163,7 @@
 #' is \eqn{X'(Y - P - E)} dropping the normalized column.
 #'
 #' At \eqn{\nu = 0.5}, \code{which_alternative = 1}, and a matched support this
-#' reproduces \code{\link{gme_mnl}} exactly (it is the same GJP estimator). The
+#' recovers the same Golan-Judge-Perloff (1996) multinomial GME estimate. The
 #' new pieces are \code{nu}, the matrix \code{(y, X)} interface, and
 #' \code{which_alternative}. \code{coef()} returns the multipliers
 #' \code{lambda} (not a transformed beta).
@@ -196,8 +204,8 @@
 #'   \emph{Journal of the American Statistical Association}, \strong{91}(434),
 #'   841-853.
 #'
-#' @seealso \code{\link{gme_mnl}} (the formula-interface, equal-weight sibling),
-#'   \code{\link{margins}} for marginal effects.
+#' @seealso \code{\link{margins}} for marginal effects, \code{\link{fano_bounds}}
+#'   for information-theoretic error bounds.
 #'
 #' @examples
 #' set.seed(123)
@@ -242,7 +250,7 @@ multinomial_gce <- function(y, X, which_alternative = 1L, p0 = NULL, w0 = NULL,
   # ---- error support v (scalar = count; vector = support in [-1,1]) --------
   if (is.null(v)) {
     mm <- if (is.null(w0)) 3L else dim(w0)[3]
-    v  <- .mnl_default_support(ii, mm)              # +/- 1/sqrt(N), reused from gme_mnl.R
+    v  <- .mnl_default_support(ii, mm)              # 3-point grid on +/- 1/sqrt(N)
   } else if (length(v) == 1L) {
     mm <- as.integer(v); if (mm < 2L) stop("scalar 'v' (support count) must be >= 2.")
     v  <- .mnl_default_support(ii, mm)

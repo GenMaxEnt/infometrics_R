@@ -4,11 +4,10 @@
 # on a bounded signal support and each error on a noise support, then the
 # concentrated dual is solved in the T Lagrange multipliers.
 #
-# NOTE: linreg() fits the SAME estimator as gme() (GCE regression). It is a
-# deliberate standalone sibling of inverse_ce()/inverse_noise() that adds
-# lm-style conveniences (predict(), printCoefmat summary, r.squared) and keeps
-# its own argument naming (lowercase `v` for the noise support). See CLAUDE.md
-# "linreg vs gme" for the relationship.
+# NOTE: linreg() is the GCE linear-regression estimator with a deliberate
+# standalone lm-style interface, a sibling of inverse_ce()/inverse_noise() that
+# adds conveniences (predict(), printCoefmat summary, r.squared) and keeps its
+# own argument naming (lowercase `v` for the noise support).
 #
 # References:
 #   Golan, A. (2008). Information and Entropy Econometrics -- A Review and
@@ -95,11 +94,11 @@
 #' shrink \eqn{\beta} toward the support centers.
 #'
 #' @details
-#' This is the same estimator family as \code{\link{gme}} (GCE regression),
-#' exposed with an lm-style interface that adds a \code{\link{predict}} method,
+#' This fits the Generalized Cross-Entropy (GCE) linear regression estimator
+#' with an lm-style interface, adding a \code{\link{predict}} method,
 #' an \code{lm}-style coefficient table, and \code{r.squared}. The dual is
 #' minimised here (convex) to match the package convention used by
-#' \code{\link{gme}}, \code{\link{inverse_ce}} and \code{\link{inverse_noise}};
+#' \code{\link{inverse_ce}} and \code{\link{inverse_noise}};
 #' this is equivalent to maximising the joint signal-plus-noise entropy. Uniform
 #' priors (\code{p0 = NULL}, \code{w0 = NULL}) give GME; user priors give GCE.
 #'
@@ -155,8 +154,8 @@
 #' fit <- linreg(y ~ x1 + x2, data = d, Z = seq(-20, 20, length.out = 5))
 #' summary(fit)
 #'
-#' @seealso \code{\link{gme}} (the matrix/regression sibling of this estimator),
-#'   \code{\link{inverse_ce}}, \code{\link{inverse_noise}}.
+#' @seealso \code{\link{inverse_ce}}, \code{\link{inverse_noise}} for related
+#'   information-theoretic estimators.
 #' @importFrom stats model.frame model.matrix model.response optim sd
 #' @importFrom stats printCoefmat delete.response .getXlevels predict
 #' @export

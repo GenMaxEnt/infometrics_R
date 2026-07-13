@@ -20,7 +20,7 @@
 #' data contain exponential terms (as in the partition function Omega), since
 #' the concentrated (dual) ME/CE model involves expressions of the form
 #' exp(lambda * x). A common normalization is dividing each element by
-#' max{x_j, y_i}.
+#' max\{x_j, y_i\}.
 #'
 #' @examples
 #' x <- c(10, 30, 50, 20, 40)
@@ -63,7 +63,7 @@ normalize_data <- function(x, by = c("max", "range")) {
 #' @details
 #' In the GME framework (Golan, 2008, Section 6.1), each parameter beta_k is
 #' reparameterized as the expected value of a random variable defined on a
-#' bounded support z_k = (z_{k1}, ..., z_{kM}). The support must contain the
+#' bounded support z_k = (z_\{k1\}, ..., z_\{kM\}). The support must contain the
 #' true parameter value. A common default is a symmetric 5-point grid with
 #' half-range set to 3 standard deviations of the OLS residuals (for the error
 #' support V) or 2 times the absolute OLS estimate (for the signal support Z).

@@ -117,7 +117,7 @@
 #'
 #' @details
 #' The dual objective is minimised here (convex) to match the package
-#' convention used by \code{\link{gme}} and \code{\link{inverse_ce}}:
+#' convention used by \code{\link{inverse_ce}}:
 #' \deqn{\ell(\lambda) = -\sum_t \lambda_t y_t + (1-\nu)\log\Omega(\lambda)
 #'       + \nu \sum_t \log\Psi_t(\lambda),}
 #' with signal partition function
@@ -232,7 +232,7 @@
 #'   2(1-2), 1-145. Section 6.1.
 #'
 #' @seealso \code{\link{inverse_ce}} for the exact-moment (pure) version;
-#'   \code{\link{gme}} for the GME/GCE regression estimator;
+#'   \code{\link{linreg}} for the GME/GCE regression estimator;
 #'   \code{\link{fano_bounds}} for the Fano error bound on \code{p_hat}.
 #'
 #' @examples

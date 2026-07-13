@@ -28,7 +28,8 @@ matrix_ce(y, x, p0 = NULL, control = list())
 \item{y}{Numeric vector of length n: the row-weighted aggregates
 \eqn{y_i = \sum_j p_{ij} x_j}.}
 
-\item{x}{Numeric vector of length m: the column weights.}
+\item{x}{Numeric vector of length m: the column weights (in \code{print},
+the fitted \code{matrix_ce} object).}
 
 \item{p0}{Optional n-by-m matrix of strictly-positive prior probabilities
 whose columns sum to 1. Defaults to uniform (\code{1/n}).}
@@ -37,7 +38,9 @@ whose columns sum to 1. Defaults to uniform (\code{1/n}).}
 \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 500) and
 \code{reltol} (default 1e-12).}
 
-\item{object, x}{A \code{matrix_ce} object (\code{x} in \code{print}).}
+\item{object}{A \code{matrix_ce} object.}
+
+\item{...}{Additional arguments passed to or from methods (currently ignored).}
 
 \item{digits}{Number of significant digits to print.}
 }
@@ -66,7 +69,7 @@ with solution \eqn{\hat p_{ij} = p0_{ij}\exp(\hat\lambda_i x_j)/\Omega_j} and
 }
 \details{
 The dual is minimised here (convex) to match the package convention used by
-\code{\link{me}} and \code{\link{inverse_ce}}:
+\code{\link{inverse_ce}}:
 \deqn{\ell(\lambda) = -\sum_i \lambda_i y_i + \sum_j \log\Omega_j(\lambda),}
 minimised over the \eqn{n} row multipliers (equivalent to maximising the
 column entropies subject to the data). The problem is typically
@@ -120,7 +123,6 @@ Golan, A. (2008). \emph{Information and Entropy Econometrics -
   2(1-2), 1-145. Section 7.2.
 }
 \seealso{
-\code{\link{me}} for the vector (single-distribution) ME/CE
-  estimator; \code{\link{inverse_ce}} for the formula-interface
+\code{\link{inverse_ce}} for the formula-interface
   pure-moment ME/CE estimator.
 }

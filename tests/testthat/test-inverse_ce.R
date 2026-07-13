@@ -1,6 +1,5 @@
 # Tests for inverse_ce() — pure-moment ME/CE via the formula interface,
 # including information-matrix SEs (Var(lambda) = I^-1) and Fano error bounds.
-# (inverse_pure() is exercised as the deprecated alias.)
 
 test_that("recovers known probabilities from exact moments", {
   # Under-determined, full-rank problem (K = 5 > T = 2). p_true is the
@@ -66,25 +65,6 @@ test_that("CE with uniform prior equals ME (default)", {
                        p0 = rep(1 / 5, 5))
 
   expect_equal(coef(fit_me), coef(fit_ce), tolerance = 1e-8)
-})
-
-test_that("inverse_ce agrees with me() on the same problem", {
-  # K > T so me()'s under-determination check passes
-  X <- matrix(c(1, 2, 3, 4, 5,
-                5, 4, 3, 2, 1), nrow = 2, byrow = TRUE)  # T = 2, K = 5
-  p_true <- c(.30, .25, .20, .15, .10)
-  y <- as.vector(X %*% p_true)
-  dat <- data.frame(y = y,
-                    x1 = X[, 1], x2 = X[, 2], x3 = X[, 3],
-                    x4 = X[, 4], x5 = X[, 5])
-
-  fit_ip <- inverse_ce(y ~ x1 + x2 + x3 + x4 + x5 - 1, data = dat)
-  fit_me <- me(y = y, X = X)
-
-  # Same dual problem => identical probabilities and multipliers
-  expect_equal(unname(coef(fit_ip)), unname(fit_me$p_hat), tolerance = 1e-6)
-  expect_equal(unname(fit_ip$lambda_hat), unname(fit_me$lambda_hat),
-               tolerance = 1e-6)
 })
 
 test_that("non-uniform prior pulls the solution toward the prior", {
@@ -340,35 +320,6 @@ test_that("non-uniform prior that does not sum to 1 is renormalized", {
     "renormaliz"
   )
   expect_equal(sum(fit$p0), 1, tolerance = 1e-12)
-})
-
-test_that("inverse_pure() is a deprecated alias that forwards to inverse_ce()", {
-  X <- rbind(c(1, 2, 3, 4, 5),
-             c(1, 4, 9, 16, 25))
-  p_true <- exp(as.vector(crossprod(X, c(0.2, -0.05))))
-  p_true <- p_true / sum(p_true)
-  dat <- data.frame(y  = as.vector(X %*% p_true),
-                    s1 = X[, 1], s2 = X[, 2], s3 = X[, 3],
-                    s4 = X[, 4], s5 = X[, 5])
-
-  expect_warning(
-    inverse_pure(y ~ s1 + s2 + s3 + s4 + s5 - 1, data = dat),
-    "deprecated"
-  )
-  fit_alias <- suppressWarnings(
-    inverse_pure(y ~ s1 + s2 + s3 + s4 + s5 - 1, data = dat))
-  fit_new   <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 - 1, data = dat)
-
-  expect_s3_class(fit_alias, "inverse_ce")
-  expect_equal(coef(fit_alias), coef(fit_new), tolerance = 1e-10)
-
-  # the historical prior argument 'q' is still accepted and mapped to 'p0'
-  skew <- c(.40, .25, .15, .12, .08)
-  fit_q  <- suppressWarnings(
-    inverse_pure(y ~ s1 + s2 + s3 + s4 + s5 - 1, data = dat, q = skew))
-  fit_p0 <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 - 1, data = dat, p0 = skew)
-  expect_equal(coef(fit_q), coef(fit_p0), tolerance = 1e-10)
-  expect_equal(unname(fit_q$p0), skew / sum(skew), tolerance = 1e-12)
 })
 
 test_that("S3 methods run and return correctly shaped objects", {

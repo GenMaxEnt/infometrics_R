@@ -30,7 +30,7 @@ and the error vector epsilon.
 \details{
 In the GME framework (Golan, 2008, Section 6.1), each parameter beta_k is
 reparameterized as the expected value of a random variable defined on a
-bounded support z_k = (z_{k1}, ..., z_{kM}). The support must contain the
+bounded support z_k = (z_\{k1\}, ..., z_\{kM\}). The support must contain the
 true parameter value. A common default is a symmetric 5-point grid with
 half-range set to 3 standard deviations of the OLS residuals (for the error
 support V) or 2 times the absolute OLS estimate (for the signal support Z).

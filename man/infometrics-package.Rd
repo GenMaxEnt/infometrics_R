@@ -7,10 +7,15 @@
 \title{infometrics: Information-Theoretic Methods for Econometric Estimation}
 \description{
 Implements Information-Theoretic (IT) estimators for econometric models
-following the unified framework of Golan (2008). Provides entropy measures
-and the ME, CE, GME, and GCE estimators in both primal and dual form,
-plus multinomial extensions via \code{\link{me_mnl}} and
-\code{\link{gme_mnl}}.
+following the unified framework of Golan (2008). Provides Generalized
+Maximum Entropy (GME) and Generalized Cross-Entropy (GCE) estimators for
+linear regression (\code{\link{linreg}}), instrumental variables
+(\code{\link{linreg_iv}}), panel data (\code{\link{panel_gce}}), multinomial
+response (\code{\link{multinomial_gce}}, \code{\link{mixed_gce}}), matrix
+balancing (\code{\link{matrix_ce}}, \code{\link{matrix_gce}}), Markov
+transition matrices (\code{\link{markov_ce}}, \code{\link{markov_gce}}), and
+pure/noisy inverse problems (\code{\link{inverse_ce}},
+\code{\link{inverse_noise}}), all via the concentrated (dual) formulation.
 }
 \references{
 Golan, A. (2008). Information and Entropy Econometrics — A Review and
@@ -20,17 +25,17 @@ Synthesis. \emph{Foundations and Trends in Econometrics}, \strong{2}(1-2),
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/author/infometrics}
-  \item Report bugs at \url{https://github.com/author/infometrics/issues}
+  \item \url{https://github.com/GenMaxEnt/infometrics_R}
+  \item Report bugs at \url{https://github.com/GenMaxEnt/infometrics_R/issues}
 }
 
 }
 \author{
-\strong{Maintainer}: Author Name \email{author@example.com}
+\strong{Maintainer}: Ganbaatar Jambal \email{jg3169a@gmail.com}
 
 Authors:
 \itemize{
-  \item Author Name \email{author@example.com}
+  \item Ganbaatar Jambal \email{jg3169a@gmail.com}
 }
 
 }

@@ -68,7 +68,7 @@ Lagrange multipliers (one alternative normalized to zero).
 is \eqn{X'(Y - P - E)} dropping the normalized column.
 
 At \eqn{\nu = 0.5}, \code{which_alternative = 1}, and a matched support this
-reproduces \code{\link{gme_mnl}} exactly (it is the same GJP estimator). The
+recovers the same Golan-Judge-Perloff (1996) multinomial GME estimate. The
 new pieces are \code{nu}, the matrix \code{(y, X)} interface, and
 \code{which_alternative}. \code{coef()} returns the multipliers
 \code{lambda} (not a transformed beta).
@@ -98,6 +98,6 @@ Golan, A., Judge, G. and Perloff, J.M. (1996). A maximum entropy
   841-853.
 }
 \seealso{
-\code{\link{gme_mnl}} (the formula-interface, equal-weight sibling),
-  \code{\link{margins}} for marginal effects.
+\code{\link{margins}} for marginal effects, \code{\link{fano_bounds}}
+  for information-theoretic error bounds.
 }

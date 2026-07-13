@@ -25,7 +25,7 @@
 #'
 #' @details
 #' The dual is minimised here (convex) to match the package convention used by
-#' \code{\link{gme}}, \code{\link{inverse_noise}} and \code{\link{matrix_ce}}:
+#' \code{\link{inverse_noise}} and \code{\link{matrix_ce}}:
 #' \deqn{
 #'   \ell(\lambda) = -\sum_i \lambda_i y_i + \nu \sum_j \log\Omega_j(\lambda)
 #'        + (1-\nu)\sum_i \log\Psi_i(\lambda),
@@ -225,7 +225,8 @@ matrix_gce <- function(y, x, p0 = NULL, w0 = NULL, v = NULL, nu = 0.5,
 ## ----------------------------------------------------------------------------
 
 #' @describeIn matrix_gce Estimated signal matrix \code{p}.
-#' @param object,x A \code{matrix_gce} object (\code{x} in \code{print}).
+#' @param object A \code{matrix_gce} object (\code{x} in \code{print}).
+#' @param ... Additional arguments passed to or from methods (currently ignored).
 #' @export
 coef.matrix_gce <- function(object, ...) object$p
 
