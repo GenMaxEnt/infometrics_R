@@ -136,7 +136,9 @@
 #'   \code{e}, \code{nu}, \code{fitted.values}, \code{residuals}, \code{vcov}
 #'   (asymptotic Cov(\eqn{\beta}), Golan 2008 p. 96), \code{hessian} (positive
 #'   definite dual Hessian), \code{r.squared}, \code{H_signal} (K-vector of
-#'   per-coefficient signal entropies), \code{S} (signal normalized entropy),
+#'   per-coefficient signal entropies), \code{S} (signal normalized entropy
+#'   \eqn{H(\hat{p})/H(p_0)}; reduces to \eqn{H/(K\log M)} for a uniform prior
+#'   and can exceed 1 for a strongly informative prior),
 #'   \code{objective}/\code{value}, \code{converged}, \code{convergence},
 #'   \code{method}, the resolved inputs \code{Z}, \code{p0}, \code{v},
 #'   \code{w0}, \code{X}, \code{y}, \code{control} (retained so \code{summary()}
@@ -263,8 +265,10 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
   dimnames(Vbeta) <- list(cn, cn)
 
   Hfun <- function(pr) { pr <- pr[pr > 0]; -sum(pr * log(pr)) }
-  H_sig_k <- apply(p, 1L, Hfun)                            # K-vector
-  S  <- mean(H_sig_k) / Hfun(rep(1 / M, M))               # avg signal norm. entropy
+  H_sig_k <- apply(p, 1L, Hfun)                            # per-coefficient signal entropy (K)
+  ## prior-relative normalized entropy S = H(p_hat) / H(p0) (Golan 2008, Sec. 6.4);
+  ## for a uniform prior H(p0) = K*log(M), so this reduces to mean(H_sig_k)/log(M).
+  S  <- sum(H_sig_k) / sum(apply(p0, 1L, Hfun))
   sst <- sum((y - mean(y))^2); r2 <- 1 - sum(resid^2) / sst
 
   structure(
