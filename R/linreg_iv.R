@@ -54,6 +54,49 @@
   as.vector(crossprod(IV, y - X %*% pc$b - pc$e))
 }
 
+# ---- standard-error internals ----------------------------------------------
+# beta = Z p(lambda) is a Z-estimator of the instrument moments IV'(y-Xb-e)=0,
+# so Var(beta) = Jb A^{-1} Omega A^{-1} Jb', with A the dual Hessian,
+# Jb = dbeta/dlambda, and Omega the "meat". All on the standardized IV scale
+# (beta is scale-invariant). Validated vs Monte Carlo and the 2SLS robust-SE
+# limit.
+
+#' @keywords internal
+.linreg_iv_analytic_vcov <- function(X, IVs, Z, v, nu, p, w, beta, e, r, meat) {
+  K <- ncol(X); Tn <- nrow(X)
+  varp <- rowSums(Z^2 * p) - beta^2                 # K : Var_p(z_k)
+  varw <- as.vector(w %*% (v^2)) - e^2              # N : Var_w(v)_i
+  XtIVs <- crossprod(X, IVs)                        # K x P
+  Jb <- (varp / nu) * XtIVs                         # K x P = dbeta / dlambda
+  A  <- t(XtIVs) %*% ((varp / nu) * XtIVs) +
+        crossprod(IVs, (varw / (1 - nu)) * IVs)     # P x P dual Hessian (PD)
+  Ai <- solve(A)
+  Omega <- if (identical(meat, "sandwich")) crossprod(IVs, (r^2) * IVs)
+           else (sum(r^2) / max(Tn - K, 1L)) * crossprod(IVs)
+  V <- Jb %*% (Ai %*% Omega %*% Ai) %*% t(Jb)       # K x K
+  V <- (V + t(V)) / 2                               # symmetrize
+  dimnames(V) <- list(names(beta), names(beta))
+  V
+}
+
+#' @keywords internal
+.linreg_iv_boot_vcov <- function(object, B) {
+  y <- object$y; X <- object$X; IV <- object$IV; n <- length(y)
+  bs <- matrix(NA_real_, B, object$K)
+  for (bb in seq_len(B)) {
+    id <- sample.int(n, n, replace = TRUE)
+    f <- tryCatch(
+      linreg_iv(y[id], X[id, , drop = FALSE], IV[id, , drop = FALSE],
+                Z = object$Z, p0 = object$p0, v = object$v, nu = object$nu,
+                se_method = "none"),
+      error = function(e) NULL)
+    if (!is.null(f)) bs[bb, ] <- f$coefficients
+  }
+  V <- stats::cov(bs, use = "complete.obs")
+  dimnames(V) <- list(names(object$coefficients), names(object$coefficients))
+  V
+}
+
 # ===========================================================================
 #  linreg_iv()
 # ===========================================================================
@@ -83,7 +126,20 @@
 #'
 #' As the signal support widens the GME estimate approaches the exact (2SLS-type)
 #' IV solution; narrower supports shrink \eqn{\beta} toward the support centers.
-#' Standard errors are not currently reported.
+#'
+#' \strong{Standard errors.} Because \eqn{\hat\lambda} solves the instrument
+#' moments, \eqn{\hat\beta = Zp(\hat\lambda)} is a Z-estimator with sandwich
+#' covariance \eqn{\mathrm{Var}(\hat\beta) = J_\beta A^{-1}\Omega A^{-1}
+#' J_\beta'}, where \eqn{A} is the dual Hessian and \eqn{J_\beta =
+#' \partial\beta/\partial\lambda}. The "meat" \eqn{\Omega} is set by
+#' \code{se_method}: \code{"sandwich"} (default, robust HC0
+#' \eqn{IV'\mathrm{diag}(r^2)IV}), \code{"delta"} (classical homoskedastic
+#' \eqn{\hat\sigma^2 IV'IV}), or \code{"bootstrap"} (pairs resampling). The
+#' robust sandwich matches a Monte-Carlo sampling SD and reduces to the 2SLS
+#' robust SE as the support widens; the classical delta assumes homoskedasticity.
+#' These are \emph{asymptotic} SEs: the sampling distribution of \eqn{\hat\beta}
+#' is support-bounded and can be skewed, so symmetric Wald intervals are
+#' approximate with weak instruments or small \eqn{n}.
 #'
 #' @param y Numeric response vector of length N.
 #' @param X N-by-K design matrix (include an intercept column if wanted).
@@ -103,6 +159,11 @@
 #'   \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 1000) and
 #'   \code{reltol} (default 1e-12). \code{fnscale} is forced to -1 (the dual is
 #'   maximized).
+#' @param se_method Standard-error method: \code{"sandwich"} (default, robust),
+#'   \code{"delta"} (classical), \code{"bootstrap"} (pairs resampling), or
+#'   \code{"none"} (skip; \code{se_beta}/\code{vcov} left \code{NULL}).
+#' @param boot Number of bootstrap resamples when
+#'   \code{se_method = "bootstrap"} (default 200).
 #'
 #' @return An object of class \code{c("linreg_iv", "infometrics")} with
 #'   \code{coefficients}/\code{b_hat} (\eqn{\beta}, length K; \code{coef()}
@@ -111,6 +172,7 @@
 #'   \code{fitted.values} (\eqn{X\beta}), \code{residuals} (\eqn{y - X\beta}),
 #'   \code{H_signal} (K-vector), \code{S}, \code{objective}/\code{value},
 #'   \code{moment_resid}, \code{converged}/\code{convergence}, \code{method},
+#'   \code{se_beta} (K-vector) and \code{vcov} (K-by-K) with \code{se_method},
 #'   plus \code{Z}, \code{p0}, \code{v}, \code{w0}, \code{nu}, \code{X},
 #'   \code{y}, \code{IV}, \code{N}/\code{K}/\code{P}/\code{M}, \code{call}.
 #'
@@ -133,10 +195,12 @@
 #' fit <- linreg_iv(y, X, IV, Z)
 #' coef(fit)                              # slope ~ 1.5 (vs OLS biased upward)
 #'
-#' @importFrom stats optim sd
+#' @importFrom stats optim sd cov pnorm printCoefmat vcov
 #' @export
 linreg_iv <- function(y, X, IV, Z, p0 = NULL, v = NULL, w0 = NULL, nu = 0.5,
-                      control = list()) {
+                      se_method = c("sandwich", "delta", "bootstrap", "none"),
+                      control = list(), boot = 200L) {
+  se_method <- match.arg(se_method); boot <- as.integer(boot)
   y <- as.numeric(y); X <- as.matrix(X); IV <- as.matrix(IV); Z <- as.matrix(Z)
   N <- nrow(X); K <- ncol(X); P <- ncol(IV); M <- ncol(Z)
 
@@ -206,7 +270,7 @@ linreg_iv <- function(y, X, IV, Z, p0 = NULL, v = NULL, w0 = NULL, nu = 0.5,
   S <- mean(H_signal) / log(M)
   moment_resid <- max(abs(crossprod(IVs, y - X %*% b - pc$e)))
 
-  structure(
+  out <- structure(
     list(
       # draft names
       lambda_hat = lambda, p_hat = pc$p, b_hat = b, w_hat = pc$w, e_hat = pc$e,
@@ -216,6 +280,8 @@ linreg_iv <- function(y, X, IV, Z, p0 = NULL, v = NULL, w0 = NULL, nu = 0.5,
       e = pc$e, H_signal = H_signal, S = S,
       objective = est$value, value = est$value,
       converged = (est$convergence == 0L), method = "dual",
+      # standard errors
+      se_method = se_method, boot = boot, se_beta = NULL, vcov = NULL,
       # extras
       Z = Z, p0 = p0, v = v, w0 = w0, nu = nu, X = X, y = y, IV = IV,
       iv_scale = iv_scale, moment_resid = moment_resid,
@@ -223,6 +289,18 @@ linreg_iv <- function(y, X, IV, Z, p0 = NULL, v = NULL, w0 = NULL, nu = 0.5,
     ),
     class = c("linreg_iv", "infometrics")
   )
+
+  ## ---- standard errors (Z-estimator sandwich; Golan 2008, Sec. 3.3) --------
+  if (se_method != "none") {
+    V <- if (identical(se_method, "bootstrap"))
+           .linreg_iv_boot_vcov(out, boot)
+         else
+           .linreg_iv_analytic_vcov(X, IVs, Z, v, nu, pc$p, pc$w, b, pc$e,
+                                    resid - pc$e, meat = se_method)
+    out$vcov <- V
+    out$se_beta <- sqrt(diag(V))
+  }
+  out
 }
 
 # ===========================================================================
@@ -237,6 +315,17 @@ fitted.linreg_iv <- function(object, ...) object$fitted.values
 
 #' @export
 residuals.linreg_iv <- function(object, ...) object$residuals
+
+#' @export
+vcov.linreg_iv <- function(object, type = c("sandwich", "delta"), ...) {
+  if (missing(type) && !is.null(object$vcov)) return(object$vcov)
+  type <- match.arg(type)
+  IVs <- sweep(object$IV, 2L, object$iv_scale, "/")
+  .linreg_iv_analytic_vcov(object$X, IVs, object$Z, object$v, object$nu,
+                           object$p_hat, object$w_hat, object$coefficients,
+                           object$e_hat, object$residuals - object$e_hat,
+                           meat = type)
+}
 
 #' @export
 print.linreg_iv <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
@@ -256,21 +345,34 @@ print.linreg_iv <- function(x, digits = max(3L, getOption("digits") - 3L), ...) 
 }
 
 #' @export
-summary.linreg_iv <- function(object, digits = max(3L, getOption("digits") - 3L),
-                              ...) {
+summary.linreg_iv <- function(object, se_method = NULL,
+                              digits = max(3L, getOption("digits") - 3L), ...) {
   ident <- if (object$P == object$K) "just-identified" else "over-identified"
+  meth <- if (is.null(se_method)) object$se_method
+          else match.arg(se_method, c("sandwich", "delta", "bootstrap"))
+  if (is.null(meth) || identical(meth, "none")) meth <- "sandwich"
+  V <- if (identical(meth, object$se_method) && !is.null(object$vcov)) object$vcov
+       else if (identical(meth, "bootstrap")) .linreg_iv_boot_vcov(object, object$boot)
+       else vcov(object, type = meth)
+  se <- sqrt(diag(V))
+  z  <- object$coefficients / se
+  pv <- 2 * stats::pnorm(-abs(z))
+  tab <- cbind(Estimate = object$coefficients, `Std. Error` = se,
+               `z value` = z, `Pr(>|z|)` = pv)
+
   cat("\nStochastic-moments GME-IV (Golan 2008, pp. 89-91)\n")
   cat("Call: "); print(object$call); cat("\n")
   cat(sprintf("  N=%d  K=%d  instruments=%d (%s)  M=%d  nu=%.3g\n",
               object$N, object$K, object$P, ident, object$M, object$nu))
   cat("\nResiduals (y - X beta):\n")
   print(summary(object$residuals, digits = digits))
-  cat("\nCoefficients (beta = Z p):\n")
-  print(round(object$coefficients, digits))
+  cat(sprintf("\nCoefficients (beta = Z p;  SE method: %s):\n", meth))
+  stats::printCoefmat(tab, digits = digits, has.Pvalue = TRUE)
   cat(sprintf("\nnormalized signal entropy S = %.4f   max|moment resid| = %s\n",
               object$S, format(object$moment_resid, digits = digits)))
   cat(sprintf("convergence: %s\n", if (object$converged) "yes (0)" else "no"))
-  cat("\nNote: standard errors are not reported; the GME-IV asymptotic variance\n",
-      "is deferred to the package inference layer.\n", sep = "")
+  cat("\nNote: asymptotic standard errors. The sampling distribution of beta is\n",
+      "support-bounded and can be skewed, so Wald intervals are approximate with\n",
+      "weak instruments or small n.\n", sep = "")
   invisible(object)
 }
