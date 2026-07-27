@@ -509,7 +509,10 @@ To make refits faithful, `linreg()` **stores the resolved `Z`, `p0`, `v`,
 `p0`, `w0`, `nu`; uniform priors → GME, user priors → GCE; minimised convex
 dual; PD Hessian).
 `linreg()` carries both `p_hat` (K×M) and `w_hat` (T×J); its `H_signal` is the
-K-vector of per-coefficient signal entropies (like `gme()`).
+K-vector of per-coefficient signal entropies, and its normalized entropy `S` is
+**prior-relative** — `S = H(p̂)/H(p0)` (Golan §6.4), reducing to `H/(K·log M)`
+for a uniform prior (GME) and matching `matrix_ce`/`markov_ce`/`inverse_noise`;
+it can exceed 1 for a strongly informative prior.
 
 **`panel_gce()`** — dual **GME/GCE for the one-way error-components panel model**
 `y_nt = x_nt'β + μ_n + ε_nt` (Lee & Cheon 2014, *CSAM* 21(5), eq. 3.12), the

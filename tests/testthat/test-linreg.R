@@ -111,6 +111,28 @@ test_that("entropy S in [0, 1] and r.squared in a sensible range", {
   expect_length(fit$H_signal, 3)               # per-coefficient signal entropy
 })
 
+test_that("normalized entropy S is prior-relative (Golan 2008, Sec. 6.4)", {
+  d  <- make_reg_data()
+  Zc <- seq(-20, 20, length.out = 5)
+  Hf <- function(pr) { pr <- pr[pr > 0]; -sum(pr * log(pr)) }
+
+  # uniform prior (GME): S == sum(H_k) / (K * log M)
+  fu <- linreg(y ~ x1 + x2, data = d, Z = Zc)
+  K  <- nrow(fu$p_hat); M <- ncol(fu$p_hat)
+  expect_equal(fu$S, sum(apply(fu$p_hat, 1L, Hf)) / (K * log(M)),
+               tolerance = 1e-10)
+
+  # informative prior (GCE): S == H(p_hat) / H(p0), differing from the
+  # uniform-reference value
+  p0 <- matrix(c(.4, .3, .15, .1, .05), nrow = 3, ncol = 5, byrow = TRUE)
+  fg <- linreg(y ~ x1 + x2, data = d, Z = Zc, p0 = p0)
+  expect_equal(fg$S,
+               sum(apply(fg$p_hat, 1L, Hf)) / sum(apply(p0, 1L, Hf)),
+               tolerance = 1e-10)
+  expect_false(isTRUE(all.equal(
+    fg$S, sum(apply(fg$p_hat, 1L, Hf)) / (K * log(M)))))
+})
+
 test_that("input validation throws informative errors", {
   d <- make_reg_data()
 

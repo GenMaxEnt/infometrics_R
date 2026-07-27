@@ -1,5 +1,22 @@
 # infometrics 0.3.0
 
+## `linreg()` normalized entropy is now prior-relative
+
+`linreg()`'s reported normalized entropy `S` now uses the prior as the
+reference, `S = H(p_hat) / H(p0)` (Golan 2008, Sec. 6.4), matching
+`matrix_ce()`, `markov_ce()`, and `inverse_noise()`. For a uniform prior this is
+unchanged (`H(p0) = K log M`, so GME output is identical); for an informative
+`p0` (GCE) `S` is measured against that prior and can exceed 1 when the data are
+less informative than the prior.
+
+## New vignette
+
+A second vignette, *Generalized Maximum Entropy and Cross-Entropy for the Linear
+Model*, demonstrates `linreg()` and `linreg_iv()`: GME versus OLS under
+collinearity, GCE with an informative prior, the entropy weight `nu`, the
+normalized-entropy / entropy-ratio / pseudo-R-squared and Wald diagnostics, and
+an instrumental-variables example.
+
 ## Package scope reduced for CRAN submission
 
 The package now focuses on the Generalized Maximum Entropy (GME) and

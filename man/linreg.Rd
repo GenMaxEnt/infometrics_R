@@ -90,7 +90,9 @@ An object of class \code{c("linreg", "infometrics")}: a list with
   \code{e}, \code{nu}, \code{fitted.values}, \code{residuals}, \code{vcov}
   (asymptotic Cov(\eqn{\beta}), Golan 2008 p. 96), \code{hessian} (positive
   definite dual Hessian), \code{r.squared}, \code{H_signal} (K-vector of
-  per-coefficient signal entropies), \code{S} (signal normalized entropy),
+  per-coefficient signal entropies), \code{S} (signal normalized entropy
+  \eqn{H(\hat{p})/H(p_0)}; reduces to \eqn{H/(K\log M)} for a uniform prior
+  and can exceed 1 for a strongly informative prior),
   \code{objective}/\code{value}, \code{converged}, \code{convergence},
   \code{method}, the resolved inputs \code{Z}, \code{p0}, \code{v},
   \code{w0}, \code{X}, \code{y}, \code{control} (retained so \code{summary()}
