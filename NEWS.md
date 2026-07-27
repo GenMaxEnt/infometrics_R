@@ -1,5 +1,18 @@
 # infometrics 0.3.0
 
+## `linreg_iv()` now reports standard errors
+
+`linreg_iv()` gains standard errors for the coefficients via a new
+`se_method` argument: `"sandwich"` (default, robust HC0), `"delta"` (classical
+homoskedastic), `"bootstrap"` (pairs resampling), or `"none"`. `\beta = Zp` is a
+Z-estimator of the instrument moments, so `Var(beta) = J A^-1 Omega A^-1 J'`.
+Validated against a Monte-Carlo sampling SD and the 2SLS robust-SE limit (the
+sandwich matches both; the classical delta assumes homoskedasticity). Adds a
+`vcov()` method (`type = "sandwich"/"delta"`) and an `Estimate | Std. Error | z |
+Pr(>|z|)` table in `summary()`. These are asymptotic SEs: the sampling
+distribution of `beta` is support-bounded and can be skewed, so Wald intervals
+are approximate with weak instruments or small `n`.
+
 ## `linreg()` normalized entropy is now prior-relative
 
 `linreg()`'s reported normalized entropy `S` now uses the prior as the

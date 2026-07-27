@@ -470,9 +470,20 @@ knitr::kable(tab_iv, digits = 3,
 OLS pulls the slope above its true value of 1.5, while both instrumented
 estimators bring it back close to the truth. As the signal support widens the
 GME-IV estimate approaches the exact 2SLS solution; a narrower support
-regularizes it, which can help when the instruments are weak. `summary(gme_iv)`
-reports the instrument-moment residual (near zero at convergence) and the
-normalized signal entropy.
+regularizes it, which can help when the instruments are weak.
+
+`summary()` reports a coefficient table with standard errors. Choose the method
+with `se_method`: `"sandwich"` (the default, robust), `"delta"` (classical), or
+`"bootstrap"`. The robust sandwich matches a Monte-Carlo sampling SD and reduces
+to the 2SLS robust standard error as the support widens.
+
+```{r iv-summary}
+summary(gme_iv)
+```
+
+These are *asymptotic* standard errors: because the coefficient supports bound
+$\hat{\boldsymbol{\beta}}$, its sampling distribution can be skewed, so Wald
+intervals are approximate with weak instruments or small $n$.
 
 # Practical guidance
 

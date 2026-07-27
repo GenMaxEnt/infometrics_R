@@ -88,3 +88,63 @@ test_that("canonical aliases and S3 methods are present and consistent", {
   expect_output(print(fit), "GME-IV")
   expect_output(print(summary(fit)), "Coefficients")
 })
+
+test_that("standard errors: sandwich (default) finite, PD, K x K", {
+  d <- sim_iv(n = 200L)
+  fit <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K))
+  expect_identical(fit$se_method, "sandwich")
+  expect_length(fit$se_beta, d$K)
+  expect_true(all(is.finite(fit$se_beta)) && all(fit$se_beta > 0))
+  V <- vcov(fit)
+  expect_equal(dim(V), c(d$K, d$K))
+  expect_equal(V, t(V), tolerance = 1e-10)                      # symmetric
+  expect_gt(min(eigen(V, symmetric = TRUE, only.values = TRUE)$values), 0)  # PD
+  expect_equal(unname(fit$se_beta), unname(sqrt(diag(V))), tolerance = 1e-12)
+})
+
+test_that("delta and bootstrap SE methods run and are finite", {
+  d <- sim_iv(n = 200L)
+  fd <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K), se_method = "delta")
+  expect_identical(fd$se_method, "delta")
+  expect_true(all(is.finite(fd$se_beta)) && all(fd$se_beta > 0))
+  set.seed(7)
+  fb <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K), se_method = "bootstrap", boot = 40L)
+  expect_identical(fb$se_method, "bootstrap")
+  expect_true(all(is.finite(fb$se_beta)) && all(fb$se_beta > 0))
+})
+
+test_that("se_method = 'none' skips SEs; vcov() then recomputes", {
+  d <- sim_iv(n = 200L)
+  fn <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K), se_method = "none")
+  expect_null(fn$se_beta)
+  expect_null(fn$vcov)
+  expect_equal(dim(vcov(fn)), c(d$K, d$K))                      # recomputes (sandwich)
+})
+
+test_that("vcov(type=) switches the meat; delta differs from sandwich", {
+  d <- sim_iv(n = 200L)
+  fit <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K))
+  Vs <- vcov(fit, type = "sandwich"); Vd <- vcov(fit, type = "delta")
+  expect_equal(dim(Vd), c(d$K, d$K))
+  expect_false(isTRUE(all.equal(diag(Vs), diag(Vd))))
+})
+
+test_that("sandwich SE -> 2SLS robust SE as the support widens", {
+  d <- sim_iv(n = 300L)
+  fit <- suppressWarnings(
+    linreg_iv(d$y, d$X, d$IV,
+              matrix(c(-40, 0, 40), nrow = d$K, ncol = 3, byrow = TRUE)))
+  b   <- solve(crossprod(d$IV, d$X), crossprod(d$IV, d$y))
+  r   <- as.vector(d$y - d$X %*% b); br <- solve(crossprod(d$IV, d$X))
+  se_2sls <- sqrt(diag(br %*% crossprod(d$IV, (r^2) * d$IV) %*% t(br)))
+  expect_equal(unname(fit$se_beta), unname(se_2sls), tolerance = 0.03)
+})
+
+test_that("summary() prints an SE coefficient table with z and p-values", {
+  d <- sim_iv(n = 150L)
+  fit <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K))
+  out <- capture.output(summary(fit))
+  expect_true(any(grepl("Std. Error", out)))
+  expect_true(any(grepl("z value", out)))
+  expect_true(any(grepl("SE method: sandwich", out)))
+})

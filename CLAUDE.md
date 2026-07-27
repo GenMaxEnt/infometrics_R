@@ -415,9 +415,19 @@ unchanged; `λ` reported on the original scale). **Generalised to over-identifie
 IV** (`λ` length = `ncol(IV) ≥ ncol(X)`). **Maximise form (`fnscale=-1`)** kept by
 user choice (with `markov_*`/`multinomial_gce`). `coef()` returns `β`; carries
 both `p_hat` and `w_hat`; `H_signal` is the K-vector of per-coef signal
-entropies. **SEs are deferred** (the GME-IV asymptotic variance is non-trivial —
-not faked). NOTE: Card's paper PDF is a scanned image; OLS/2SLS from the data
-were the validation reference.
+entropies. **Standard errors are now implemented** via `se_method` ∈
+{`sandwich` (default, robust HC0), `delta` (classical), `bootstrap` (pairs),
+`none`}: `β = Zp` is a Z-estimator of the instrument moments, so
+`Var(β) = Jβ A⁻¹ Ω A⁻¹ Jβ'` with `A` the dual Hessian,
+`Jβ = ∂β/∂λ = diag(Var_p(z)/ν)·(X'IV)`, and `Ω` the meat (`IV'diag(r²)IV`
+robust / `σ̂²·IV'IV` classical; `r = y−Xβ−e`). **MC-validated:** the sandwich
+matches the trimmed MC sampling SD and **→ 2SLS robust SE as the support widens**
+(0.1069 vs 0.1068), the classical delta assumes homoskedasticity (understates
+under heteroskedasticity). Adds `vcov.linreg_iv(type=)` + an ER-style
+`summary()` coef table; object carries `se_beta`/`vcov`/`se_method`/`boot`. SEs
+are **asymptotic** (the β sampling distribution is support-bounded/skewed — Wald
+intervals approximate). See [[gme-se-validation]]. NOTE: Card's paper PDF is a
+scanned image; OLS/2SLS from the data were the validation reference.
 
 **`inverse_noise()`** — the noisy-moment (GME/GCE) sibling of `inverse_ce()`,
 solving `y = X p + e` with `e_t = Σ_j v_j w_tj` (Golan §6.1). Same lm-style

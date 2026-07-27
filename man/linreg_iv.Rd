@@ -13,7 +13,9 @@ linreg_iv(
   v = NULL,
   w0 = NULL,
   nu = 0.5,
-  control = list()
+  se_method = c("sandwich", "delta", "bootstrap", "none"),
+  control = list(),
+  boot = 200L
 )
 }
 \arguments{
@@ -39,10 +41,17 @@ default uniform.}
 
 \item{nu}{Signal/noise entropy weight in \eqn{(0,1)}; default 0.5.}
 
+\item{se_method}{Standard-error method: \code{"sandwich"} (default, robust),
+\code{"delta"} (classical), \code{"bootstrap"} (pairs resampling), or
+\code{"none"} (skip; \code{se_beta}/\code{vcov} left \code{NULL}).}
+
 \item{control}{Named list merged over defaults and passed to
 \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 1000) and
 \code{reltol} (default 1e-12). \code{fnscale} is forced to -1 (the dual is
 maximized).}
+
+\item{boot}{Number of bootstrap resamples when
+\code{se_method = "bootstrap"} (default 200).}
 }
 \value{
 An object of class \code{c("linreg_iv", "infometrics")} with
@@ -52,6 +61,7 @@ An object of class \code{c("linreg_iv", "infometrics")} with
   \code{fitted.values} (\eqn{X\beta}), \code{residuals} (\eqn{y - X\beta}),
   \code{H_signal} (K-vector), \code{S}, \code{objective}/\code{value},
   \code{moment_resid}, \code{converged}/\code{convergence}, \code{method},
+  \code{se_beta} (K-vector) and \code{vcov} (K-by-K) with \code{se_method},
   plus \code{Z}, \code{p0}, \code{v}, \code{w0}, \code{nu}, \code{X},
   \code{y}, \code{IV}, \code{N}/\code{K}/\code{P}/\code{M}, \code{call}.
 }
@@ -78,7 +88,20 @@ is reported on the original scale. \code{coef()} returns \eqn{\beta}.
 
 As the signal support widens the GME estimate approaches the exact (2SLS-type)
 IV solution; narrower supports shrink \eqn{\beta} toward the support centers.
-Standard errors are not currently reported.
+
+\strong{Standard errors.} Because \eqn{\hat\lambda} solves the instrument
+moments, \eqn{\hat\beta = Zp(\hat\lambda)} is a Z-estimator with sandwich
+covariance \eqn{\mathrm{Var}(\hat\beta) = J_\beta A^{-1}\Omega A^{-1}
+J_\beta'}, where \eqn{A} is the dual Hessian and \eqn{J_\beta =
+\partial\beta/\partial\lambda}. The "meat" \eqn{\Omega} is set by
+\code{se_method}: \code{"sandwich"} (default, robust HC0
+\eqn{IV'\mathrm{diag}(r^2)IV}), \code{"delta"} (classical homoskedastic
+\eqn{\hat\sigma^2 IV'IV}), or \code{"bootstrap"} (pairs resampling). The
+robust sandwich matches a Monte-Carlo sampling SD and reduces to the 2SLS
+robust SE as the support widens; the classical delta assumes homoskedasticity.
+These are \emph{asymptotic} SEs: the sampling distribution of \eqn{\hat\beta}
+is support-bounded and can be skewed, so symmetric Wald intervals are
+approximate with weak instruments or small \eqn{n}.
 }
 \examples{
 set.seed(1)
