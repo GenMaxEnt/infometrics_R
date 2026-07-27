@@ -1,0 +1,500 @@
+---
+title: "Generalized Maximum Entropy and Cross-Entropy for the Linear Model"
+author: "Ganbaatar Jambal"
+date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    base_format: rmarkdown::html_vignette
+    number_sections: true
+bibliography: references.bib
+csl: apa.csl
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Generalized Maximum Entropy and Cross-Entropy for the Linear Model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, comment = "#>")
+```
+
+```{r pkg, message = FALSE}
+library(infometrics)
+```
+
+# Ill-conditioned regression problems
+
+In the companion vignette *Pure Inverse Problems* we used `inverse_ce()` to
+recover a distribution from an ill-posed problem in which the number of unknowns
+exceeds the number of observations. That is not the only situation in which
+traditional estimation methods run into trouble. In many applied settings --- even in cases where the sample is relatively large compared to the number of parameters  --- traditional methods may still behave poorly.
+
+Such problems are quite common in the social sciences, and especially in economics, where the data are often *observational* rather than the outcome of a carefully designed and replicable experiment. When the data are collected passively we cannot rule out possibilities of strong dependence, including in the form of multicollinearity. The consequences of the latter are well
+known: standard errors are inflated, coefficients lose statistical
+significance, point estimates become erratic and sensitive to small changes in
+the data, and the numerical procedure becomes less stable. These situations are often encountered in impact evaluations in which the analyst adds polynomial and interaction terms. It is a sensible strategy to capture non-linearities, but it may also backfire by creating regressors with near-exact linear dependencies.
+
+This vignette introduces the **Generalized Maximum Entropy (GME)** and
+**Generalized Cross-Entropy (GCE)** estimators [@golan1996maximum; @golan2008information], which are designed to deal with these ill-conditioned problems, and shows how to fit them with the `linreg()` function of the infometrics package. At the end of this vignette, we also demonstrate its sibling, the `linreg_iv()` function, which deals with instrumental variables.
+
+But before demonstrating a working example, let's highlight the underlying concepts and core mechanics of the GME and GCE estimators, and start with the general linear model (GLM)
+
+\begin{equation}
+  \mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \mathbf{e}
+  (\#eq:glm)
+\end{equation}
+
+where $\mathbf{y} = (y_1, \dots, y_T)'$ is the $T$-dimensional response,
+$\mathbf{X}$ is a known $T \times K$ matrix of explanatory variables,
+$\boldsymbol{\beta} = (\beta_1, \dots, \beta_K)'$ is the $K$-vector of unknown
+parameters, and $\mathbf{e} = (e_1, \dots, e_T)'$ is the noise, which absorbs
+sampling error, non-sampling error, and model misspecification.
+
+# The GME formulation
+
+The idea behind GME is to treat the unknown coefficients and errors as *random
+variables* and to reparameterize them as expected values over bounded **support
+spaces**. Each estimated coefficient is written as the mean of a discrete distribution
+$\mathbf{p}_k$ on a support $\mathbf{z}_k = (z_{k1}, \dots, z_{kM})$, and each
+error as the mean of a distribution $\mathbf{w}_t$ on a support
+$\mathbf{v} = (v_1, \dots, v_J)$:
+
+\begin{equation}
+  \beta_k = \sum_{m=1}^M z_{km}\, p_{km},
+  \qquad
+  e_t = \sum_{j=1}^J v_j\, w_{tj}.
+  (\#eq:reparam)
+\end{equation}
+
+Because $\mathbf{P}$ and $\mathbf{W}$ are probability distributions, they must
+satisfy the additivity (normalization) constraints
+
+\begin{equation}
+  \sum_{m=1}^M p_{km} = 1 \;\; (k = 1, \dots, K), \qquad
+  \sum_{j=1}^J w_{tj} = 1 \;\; (t = 1, \dots, T),
+  (\#eq:add)
+\end{equation}
+
+with $p_{km} \ge 0$ and $w_{tj} \ge 0$. The support $\mathbf{z}_k$ must be wide
+enough to contain the true value of $\beta_k$; the error support $\mathbf{v}$ is
+symmetric around zero so that the noise is mean-zero, with a half-width set by
+the **three-sigma rule** [@pukelsheim1994three] --- three times an estimate of
+$\mathbf{y}$'s standard deviation.
+
+Among the infinitely many distributions consistent with the data we select the
+one that is maximally uninformative, i.e. that maximizes the Shannon entropy
+[@shannon1948mathematical]
+
+\begin{equation}
+  H(\mathbf{P}, \mathbf{W}) =
+    - \sum_{k}\sum_{m} p_{km} \log p_{km}
+    - \sum_{t}\sum_{j} w_{tj} \log w_{tj}.
+  (\#eq:entropy)
+\end{equation}
+
+Maximizing \@ref(eq:entropy) subject to the data constraint \@ref(eq:glm), the reparameterization \@ref(eq:reparam) and the normalizations \@ref(eq:add) yields the following solutions [see @golan1996maximum, Ch. 6; @golan2008information, Sec. 6.1]
+
+\begin{equation}
+  \hat{p}_{km}
+    = \frac{\exp\!\left(-z_{km} \sum_t \hat{\lambda}_t x_{tk}\right)}
+           {\Omega_k(\hat{\boldsymbol{\lambda}})},
+  \qquad
+  \hat{w}_{tj}
+    = \frac{\exp\!\left(-\hat{\lambda}_t v_{j}\right)}
+           {\Psi_t(\hat{\boldsymbol{\lambda}})},
+  (\#eq:solution)
+\end{equation}
+
+where $\Omega_k$ and $\Psi_t$ are the normalizing (partition) functions and
+$\hat{\boldsymbol{\lambda}}$ is a $T$-vector of Lagrange multipliers on the data
+constraint. As with the pure inverse problem, $\lambda_t$ measures the
+information content of observation $t$: a multiplier near zero means that row
+carries little information.
+
+# From the primal to the concentrated dual
+
+Substituting the solution \@ref(eq:solution) back into the Lagrangian collapses
+the primal problem into an unconstrained **concentrated (dual)** problem in
+$\boldsymbol{\lambda}$ alone:
+
+\begin{equation}
+  \min_{\boldsymbol{\lambda}}
+    \left\{
+      \sum_t y_t \lambda_t
+      + \sum_k \log \Omega_k(\boldsymbol{\lambda})
+      + \sum_t \log \Psi_t(\boldsymbol{\lambda})
+    \right\}.
+  (\#eq:dual)
+\end{equation}
+
+Please note that the $\boldsymbol{\lambda}$'s are the Lagrange multipliers associated with equation \@ref(eq:glm) only; we omit the Lagrange multipliers of the normalization constraints \@ref(eq:add) because the closed-form solutions in \@ref(eq:solution) already satisfy the normalization by construction. It is also worth noting that the gradient of \@ref(eq:dual) is the moment condition
+$\mathbf{y} - \mathbf{X}\boldsymbol{\beta} - \mathbf{e} = \mathbf{0}$, so at the
+optimum the data are reproduced exactly, $\mathbf{y} = \mathbf{X}\hat{\boldsymbol{\beta}} + \hat{\mathbf{e}}$;
+the estimator simply chooses the least-informative split of $\mathbf{y}$ into
+signal and noise.
+
+Solving in $\boldsymbol{\lambda}$ rather than in $(\mathbf{P}, \mathbf{W})$ is a
+large computational saving. Suppose $T = 100$, $K = 5$, $M = 3$, and $J = 3$.
+The primal problem requires estimation of $K \times M + T \times J = 15 + 300 = 315$
+unknowns, whereas the concentrated dual is solved in just
+$T = 100$ Lagrange multipliers. `linreg()` always uses the dual form (BFGS method with an
+analytic gradient), recovering $\hat{\boldsymbol{\lambda}}$ and then mapping it
+back through \@ref(eq:solution) and \@ref(eq:reparam) to recover 
+$\hat{\boldsymbol{\beta}}$ and $\hat{\mathbf{e}}$.
+
+# The GCE extension: incorporating prior information
+
+If we have prior beliefs about the data-generating process and the noise --- summarized as prior probabilities $\left\{ \mathbf{p}^0_k, \mathbf{w}^0_t \right\}$ over their respective support spaces $\left\{ \mathbf{z}_k, \mathbf{v} \right\}$ --- we can fold them in by replacing the entropy with the **cross-entropy** (or Kullback--Leibler divergence) between the estimated distributions and their prior information:
+
+\begin{equation}
+  D(\mathbf{P} \,\Vert\, \mathbf{P}^0) + D(\mathbf{W} \,\Vert\, \mathbf{W}^0)
+    = \sum_k \sum_m p_{km} \log\!\left(p_{km} / p^0_{km}\right) +
+    \sum_t \sum_j w_{tj} \log\!\left(w_{tj} / w^0_{tj}\right).
+  (\#eq:ce)
+\end{equation}
+
+Minimizing the divergence \@ref(eq:ce) subject to the same constraints is the GCE estimator. A **uniform** prior reproduces GME; a non-uniform prior pulls the estimates toward the prior mean. In `linreg()` prior information on $\boldsymbol{\beta}$ can be summarized in the single argument `p0` (a $K \times M$ matrix whose rows sum to one), and our subjective beliefs on $\mathbf{e}$ can be incorporated in `w0` (a $T \times J$ matrix whose rows sum to one): you may leave either one or both blank to opt for the default (uniform distribution), or supply them for GCE.
+
+# Worked examples
+
+We now put GME and GCE estimation to work on a deliberately ill-conditioned data set, in the spirit of the collinearity illustration in Section 6.6 of @golan2008information. `linreg()` also lets you place weights on the signal and noise, which the worked example presents as well.  
+
+## A collinear design: GME versus OLS
+
+We generate 200 observations from
+$y = 1 - 2 x_1 + 3 x_2 + 0 \cdot x_3 + e$, where $x_1$ is a clean regressor but
+$x_3$ is nearly a copy of $x_2$. The coefficient on $x_3$ is truly zero, so a
+good estimator should (a) recover the strong, clean effect of $x_1$, and
+(b) not be fooled by the collinear $x_2/x_3$ pair.
+
+```{r dgp}
+set.seed(10)
+n  <- 200
+x1 <- runif(n, 0, 20)                 # clean regressor
+x2 <- runif(n, 0, 20)
+x3 <- x2 + rnorm(n, 0, 0.05)          # near-collinear with x2 (extreme)
+
+b  <- c(1, -2, 3, 0)                  # (Intercept), x1, x2, x3
+y  <- b[1] + b[2] * x1 + b[3] * x2 + b[4] * x3 + rnorm(n, 0, sqrt(2))
+dat <- data.frame(y, x1, x2, x3)
+
+truth <- c(`(Intercept)` = 1, x1 = -2, x2 = 3, x3 = 0)
+cor(x2, x3)                           # near-perfect collinearity
+```
+
+We fit OLS and GME on the same data. For GME we place every coefficient on a
+symmetric five-point support that comfortably contains the true values, and we
+set the noise support by the three-sigma rule using the standard deviation of $\mathbf{y}$.
+
+```{r fit1}
+ols <- lm(y ~ x1 + x2 + x3, data = dat)
+
+Zvec <- seq(-6, 6, length.out = 5)   # coefficient support (shared)
+sig  <- sd(dat$y)                    # standard deviation of y for the noise support
+vvec <- seq(-3 * sig, 3 * sig, length.out = 5)
+
+gme <- linreg(y ~ x1 + x2 + x3, data = dat,
+              Z = Zvec, v = vvec)             # nu = 0.5, uniform priors => GME
+```
+
+```{r table1}
+se <- function(fit) sqrt(diag(vcov(fit)))
+tab1 <- data.frame(
+  Truth    = truth,
+  OLS      = coef(ols),
+  `OLS SE` = se(ols),
+  GME      = coef(gme),
+  `GME SE` = se(gme),
+  check.names = FALSE
+)
+knitr::kable(tab1, digits = 3,
+             caption = "OLS versus GME under near-perfect collinearity of x2 and x3.")
+```
+
+The clean coefficient on $x_1$ is recovered well by both methods. The collinear
+pair is the real difficulty. Because $x_2$ and $x_3$ are almost identical
+($\mathrm{cor} \approx 0.99996$), the data identify only their *combined* effect
+of about $3$; how OLS divides that effect between the two is essentially
+arbitrary and swings wildly from sample to sample. In this draw OLS loads almost
+the entire effect onto the *truly-irrelevant* $x_3$ ($\hat\beta_3 \approx 3$) and
+leaves $x_2$ near zero ($\hat\beta_2 \approx 0$) --- the exact reverse of the
+split a different sample would give --- while flagging the indeterminacy with
+large standard errors on both. GME cannot conjure information the data do not
+contain, but its bounded supports keep the estimates from exploding: it splits
+the shared effect roughly evenly and stays finite and stable. Section
+\@ref(adding-prior-information-gce) shows how a modest prior resolves the
+attribution that the data alone cannot.
+
+## Adding prior information (GCE)
+
+Suppose our prior knowledge can be summarized in the following statement: "$\beta_2 \approx 2.8$", which is still biased but close to the true value. Then we can incorporate this into the GCE estimator as follows:
+
+```{r prior}
+# we can recover probabilities associated with the  
+# prior information, using the inverse_ce() function  
+temp <- data.frame(y=2.8, s1 = Zvec[1], s2 = Zvec[2], 
+                   s3= Zvec[3], s4= Zvec[4], s5= Zvec[5])
+p0_x2 <- inverse_ce(y ~ s1 + s2 + s3 + s4 + s5 - 1, data=temp)$p_hat
+p0_other_x <- rep(1/5, 5)
+p0 <- rbind(p0_other_x, p0_other_x, p0_x2, p0_other_x)
+
+gce <- linreg(y ~ x1 + x2 + x3, data = dat,
+              Z = Zvec, v = vvec, p0 = p0)    # GCE: informative signal prior
+```
+
+```{r table2}
+tab2 <- data.frame(
+  Truth          = truth,
+  `OLS`      = coef(ols),
+  `GME` = coef(gme),
+  `GCE`   = coef(gce),
+  check.names     = FALSE
+)
+knitr::kable(tab2, digits = 3,
+             caption = "OLS, GME (uniform prior), and GCE (informative prior).")
+```
+
+With a well-chosen prior, GCE resolves the $x_2/x_3$ ambiguity that stumped OLS:
+the estimate for the irrelevant $x_3$ is pulled toward zero and the effect it
+had absorbed is returned to $x_2$. This is the sense in which cross-entropy is
+an efficient information-processing rule [@zellner1988optimal] --- it combines
+the prior with the data into a posterior-like estimate. A word of caution: a
+prior is a modelling assumption, so a *wrong* prior will bias the estimates just
+as effectively as a right one sharpens them.
+
+## The effect of $\nu$ {#the-effect-of-nu}
+
+Finally we vary the weight $\nu$, which governs how the estimator balances the
+signal-entropy and noise-entropy terms in the dual \@ref(eq:dual). We refit the
+GCE model (uniform priors - except for $x_2$ - same supports) at $\nu = 0.1$, $0.5$, and $0.9$ and
+compare the coefficient estimates with the truth.
+
+```{r nu}
+nus <- c(0.1, 0.5, 0.9)
+fit_nu <- lapply(nus, function(nu)
+  linreg(y ~ x1 + x2 + x3, data = dat, Z = Zvec, v = vvec, p0=p0, nu = nu))
+
+tab3 <- rbind(sapply(fit_nu, coef),
+              `R-squared` = sapply(fit_nu, `[[`, "r.squared"),
+              `Signal S`  = sapply(fit_nu, `[[`, "S"))
+tab3 <- cbind(Truth = c(truth, `R-squared` = NA, `Signal S` = NA), round(tab3, 4))
+colnames(tab3) <- c("Truth", paste0("nu = ", nus))
+knitr::kable(tab3, digits = 3,
+             caption = "Coefficients, ordinary R-squared, and signal normalized entropy across nu.")
+```
+
+The moment condition $\mathbf{y} = \mathbf{X}\hat{\boldsymbol{\beta}} +
+\hat{\mathbf{e}}$ holds for every $\nu$; what changes is how much of $\mathbf{y}$
+is attributed to the systematic part $\mathbf{X}\boldsymbol{\beta}$ versus the
+noise $\mathbf{e}$. A larger $\nu$ shifts weight onto the noise term, a smaller
+$\nu$ onto the coefficients, so the coefficients, the ordinary $R^2$, and the
+signal normalized entropy $S$ (Section \@ref(inference)) all move together, as
+the two summary rows show. Unless there is a specific reason to emphasize one
+component over the other, the equal-weight default $\nu = 0.5$ is the
+recommended choice.
+
+# Inference: entropy diagnostics and hypothesis tests {#inference}
+
+Section 6.4 of @golan2008information equips the GME/GCE estimator with
+information-theoretic analogues of the usual regression diagnostics. All of them
+are by-products of the fitted probability distributions, so they cost nothing
+extra to report.
+
+## Normalized entropy and the pseudo-$R^2$
+
+Let's start with the normalized entropy 
+
+\begin{equation}
+  S(\hat{\mathbf{p}}) = \frac{- \sum_k \sum_m \hat{p}_{km} \log \hat{p}_{km}}{K \log M} \quad \text{(uniform priors)}, \\
+  S(\hat{\mathbf{p}}) = \frac{- \sum_k \sum_m \hat{p}_{km} \log \hat{p}_{km}}{- \sum_k \sum_m p^0_{km} \log p^0_{km}} \quad \text{(otherwise)}.
+  (\#eq:norm-entropy)
+\end{equation}
+
+For a uniform prior $S(\hat{\mathbf{p}})$ lies in the $[0,1]$ interval, and it is worth noting that this measure is conditional on the support chosen for the regression parameters $\boldsymbol{\beta}$. A value of $S(\hat{\mathbf{p}})$ equal to one reflects complete ignorance --- the data were essentially uninformative about the unknowns we were trying to recover --- whereas a value of zero means perfect knowledge. With an informative prior, $S(\hat{\mathbf{p}})$ is measured relative to that prior and can exceed one when the data are less informative than the prior, in which case the pseudo-$R^2$ below turns negative.
+
+One can also construct the same measure to evaluate the relevance of the information contained in each of the variables $k = 1, 2, \dots, K$:
+
+\begin{equation}
+  S(\hat{\mathbf{p}}_k) = \frac{- \sum_m \hat{p}_{km} \log (\hat{p}_{km})}{\log M} 
+  (\#eq:norment)
+\end{equation}
+
+which measures how much uncertainty about $\beta_k$ remains after conditioning on the
+data. By the same token as above, a value near $1$ means the data were essentially uninformative about
+$\beta_k$ (the estimate stayed close to the uniform prior); a value near $0$
+means $\beta_k$ is sharply pinned down. 
+
+It is also worth noting that $S(\hat{\mathbf{p}})$ represents the information contained in the whole system, while $S(\hat{\mathbf{p}}_k)$ reflects the information in column $k$. The model-level signal normalized entropy $S(\hat{\mathbf{p}})$ is stored on the fit as `$S`.
+
+Using $S(\hat{\mathbf{p}})$, one can calculate the **pseudo-$R^2$** as follows,
+
+\begin{equation}
+  \text{pseudo-}R^2 = 1 - S(\hat{\mathbf{p}}),
+  (\#eq:pseudoR2)
+\end{equation}
+
+which shows the share of the prior uncertainty that the data remove. Unlike the ordinary
+$R^2$ (variance explained, stored as `$r.squared`), it rewards *informational*
+content and remains well defined even where OLS is unstable.
+
+```{r ent}
+c(signal_S    = gme$S,
+  pseudo_R2   = 1 - gme$S,
+  ordinary_R2 = gme$r.squared)
+```
+
+## The entropy-ratio (ER) test
+
+The **entropy-ratio test** is the information-theoretic counterpart of the
+likelihood-ratio test. To test $H_0\!: \beta_k = 0$, the model is refit with the
+$k$-th coefficient's support collapsed to zero and the statistic
+
+\begin{equation}
+  \mathrm{ER}_k = 2\left[H^*_{\text{unrestricted}} - H^*_{\text{restricted},k}\right]
+  \;\sim\; \chi^2_1
+  (\#eq:er)
+\end{equation}
+
+is formed, where $H^* = \sum H(\mathbf{p}) + \sum H(\mathbf{w})$ is the total
+signal-plus-noise entropy [@golan2008information, Sec. 6.4]. An overall test of
+$H_0\!:$ all coefficients $= 0$ collapses every support row and is referred to
+$\chi^2_K$. `summary()` reports both, in place of the usual Wald $z$ table.
+
+```{r er}
+summary(gme)
+```
+
+The output shows the classic collinearity signature. The clean regressor $x_1$
+is decisively significant. The *individual* ER tests for the near-identical
+$x_2$ and $x_3$ need not reject $H_0\!:\beta_k = 0$ --- dropping either one lets
+the other absorb the shared effect --- yet the **overall** test still detects the
+joint signal. Inference about the *pair* is meaningful even when inference about
+each member separately is not.
+
+## The Wald test
+
+The ER test refits the model; a complementary route is the **Wald test**, which
+uses the asymptotic covariance $\widehat{\mathrm{Cov}}(\hat{\boldsymbol{\beta}})$
+(Golan 2008, p. 96), available through `vcov()`, and needs no refitting. For $q$
+linear restrictions $\mathbf{R}\boldsymbol{\beta} = \mathbf{r}$,
+
+\begin{equation}
+  W = (\mathbf{R}\hat{\boldsymbol{\beta}} - \mathbf{r})'
+      \left[\mathbf{R}\,\mathbf{V}\,\mathbf{R}'\right]^{-1}
+      (\mathbf{R}\hat{\boldsymbol{\beta}} - \mathbf{r})
+  \;\sim\; \chi^2_q,
+  \qquad \mathbf{V} = \widehat{\mathrm{Cov}}(\hat{\boldsymbol{\beta}}).
+  (\#eq:wald)
+\end{equation}
+
+A compact implementation on top of `coef()` and `vcov()`:
+
+```{r wald}
+wald_test <- function(fit, R, r = NULL) {
+  R <- rbind(R)                                 # allow a plain vector
+  if (is.null(r)) r <- rep(0, nrow(R))
+  d <- as.vector(R %*% coef(fit)) - r
+  W <- as.numeric(t(d) %*% solve(R %*% vcov(fit) %*% t(R), d))
+  c(W = W, df = nrow(R), p.value = pchisq(W, df = nrow(R), lower.tail = FALSE))
+}
+
+# H0: beta_x3 = 0  (single restriction; equals the squared t-ratio)
+wald_test(gme, c(0, 0, 0, 1))
+
+# H0: beta_x2 = beta_x3 = 0  (joint test of the collinear pair)
+wald_test(gme, rbind(c(0, 0, 1, 0),
+                     c(0, 0, 0, 1)))
+```
+
+For a single restriction the Wald statistic is just the squared $t$-ratio
+$(\hat\beta_k / \mathrm{se}_k)^2$. The Wald and ER tests are asymptotically
+equivalent but can disagree in finite samples --- especially under the
+finite-support regularization, where they draw on different information (the
+curvature of the dual for Wald, a full refit for ER). As with the ER test, the
+*joint* Wald test of the collinear pair stays powerful even where the individual
+tests do not; note, though, that under near-perfect collinearity the pair's
+covariance block is ill-conditioned, so treat the exact magnitude of the joint
+$W$ with care and read it qualitatively.
+
+# Instrumental variables with `linreg_iv()`
+
+When a regressor is correlated with the error --- through omitted variables,
+measurement error, or simultaneity --- OLS is biased and inconsistent. The
+classical remedy is an *instrument*: a variable that shifts the endogenous
+regressor but is unrelated to the error. `linreg_iv()` is the
+instrumental-variables sibling of `linreg()`. It identifies
+$\boldsymbol{\beta}$ through the instrument moments
+$\mathbf{W}'(\mathbf{y} - \mathbf{X}\boldsymbol{\beta} - \mathbf{e}) = \mathbf{0}$,
+where $\mathbf{W}$ is the instrument matrix [@golan2008information, pp. 89-91],
+and keeps the same support-and-entropy machinery. It uses a matrix interface,
+`linreg_iv(y, X, IV, Z)`, and supports both just-identified ($\text{ncol}(IV) =
+\text{ncol}(X)$) and over-identified systems.
+
+We simulate an endogenous regressor $x_e$ that shares a shock $u$ with the error,
+and an instrument $z$ that drives $x_e$ but is independent of $u$:
+
+```{r iv-dgp}
+set.seed(125)
+n  <- 200
+z  <- rnorm(n)                       # instrument
+u  <- rnorm(n)                       # shared shock => endogeneity
+xe <- 0.7 * z + u + rnorm(n)         # endogenous regressor
+y  <- 1 + 1.5 * xe + u               # true slope = 1.5
+
+X   <- cbind(`(Intercept)` = 1, xe = xe)   # design: intercept + endogenous xe
+IV  <- cbind(`(Intercept)` = 1, z  = z)    # instruments: intercept (self) + z
+Ziv <- matrix(c(-10, 0, 10), nrow = 2, ncol = 3, byrow = TRUE)  # signal support
+```
+
+Because $x_e$ is positively correlated with $u$ and $u$ also enters $y$, OLS
+over-states the slope. Two-stage least squares (2SLS) and GME-IV both use $z$ to
+purge the endogeneity.
+
+```{r iv-fit}
+ols_iv <- lm(y ~ xe)
+b_2sls <- solve(crossprod(IV, X), crossprod(IV, y))   # just-identified 2SLS
+gme_iv <- linreg_iv(y, X, IV, Ziv)
+
+tab_iv <- data.frame(
+  Truth    = c(`(Intercept)` = 1, xe = 1.5),
+  OLS      = coef(ols_iv),
+  `2SLS`   = as.vector(b_2sls),
+  `GME-IV` = coef(gme_iv),
+  check.names = FALSE
+)
+knitr::kable(tab_iv, digits = 3,
+             caption = "OLS is biased by endogeneity; 2SLS and GME-IV recover the true slope.")
+```
+
+OLS pulls the slope above its true value of 1.5, while both instrumented
+estimators bring it back close to the truth. As the signal support widens the
+GME-IV estimate approaches the exact 2SLS solution; a narrower support
+regularizes it, which can help when the instruments are weak. `summary(gme_iv)`
+reports the instrument-moment residual (near zero at convergence) and the
+normalized signal entropy.
+
+# Practical guidance
+
+- **Supports are the key input.** Center the coefficient support on plausible
+  values and make it wide enough to contain the truth; a wider support behaves
+  more like OLS, a narrower one regularizes more strongly. Use the three-sigma
+  rule for the symmetric noise support `v`.
+- **Reach for GCE when you have real prior information.** Encode it through
+  `p0`; a uniform `p0` is exactly GME.
+- **Leave `nu = 0.5` unless you have a reason not to.** It is the standard
+  equal-weight GME.
+- **GME shines under collinearity and other ill-conditioned designs**, where it
+  trades a little bias for a large reduction in variance and instability.
+- **Report the entropy diagnostics.** `summary()` gives the entropy-ratio test
+  and the normalized entropy $S$; the pseudo-$R^2 = 1 - S$ and the Wald test
+  (Section \@ref(inference)) complete the inferential toolkit.
+- **Endogeneity? Reach for `linreg_iv()`.** Supply an instrument matrix (each
+  exogenous regressor instruments itself); it accepts just- and over-identified
+  systems and shares `linreg()`'s supports and priors.
+
+See `?linreg` and `?linreg_iv` for the full argument lists, `summary()` for the
+entropy-ratio coefficient test, and the *Pure Inverse Problems* vignette for the
+underlying maximum-entropy machinery.
+
+# References
