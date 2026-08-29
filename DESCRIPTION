@@ -2,12 +2,13 @@ Package: infometrics
 Type: Package
 Title: Information-Theoretic Methods for Econometric Estimation
 Version: 0.3.0
-Date: 2026-07-13
+Date: 2026-08-29
 Authors@R: person("Ganbaatar", "Jambal",
     email = "jg3169a@gmail.com",
     role = c("aut", "cre"))
 Description: Implements the class of Information-Theoretic (IT) estimators for
-    econometric models, following the unified framework of Golan (2008).
+    econometric models, following the unified framework of Golan (2008)
+    <doi:10.1561/0800000004>.
     Provides Generalized Maximum Entropy (GME) and Generalized Cross-Entropy
     (GCE) estimators for linear regression, instrumental variables, one-way
     error-component panel data, multinomial response, matrix balancing, and
