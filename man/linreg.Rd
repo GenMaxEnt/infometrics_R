@@ -64,8 +64,10 @@ symmetric support spanning +/- a multiple of \code{sd(y)}.}
 strictly positive rows summing to 1. Default uniform.}
 
 \item{v, w0}{Noise support and prior, as in \code{\link{inverse_noise}}:
-\code{v} is \code{NULL} (3-point default), a whole-number support count,
-or an explicit vector; \code{w0} is a strictly-positive T-by-J matrix with
+\code{v} is \code{NULL} (3-point default of half-width
+\eqn{\max(3, \sqrt{2\log T})\,sd(y)}, which widens with the sample size --
+see \emph{Support feasibility}), a whole-number support count, or an
+explicit vector; \code{w0} is a strictly-positive T-by-J matrix with
 rows summing to 1 (default uniform).}
 
 \item{control}{A named list merged over the defaults and passed to
@@ -93,7 +95,9 @@ An object of class \code{c("linreg", "infometrics")}: a list with
   per-coefficient signal entropies), \code{S} (signal normalized entropy
   \eqn{H(\hat{p})/H(p_0)}; reduces to \eqn{H/(K\log M)} for a uniform prior
   and can exceed 1 for a strongly informative prior),
-  \code{objective}/\code{value}, \code{converged}, \code{convergence},
+  \code{objective}/\code{value}, \code{foc_residual} (\eqn{\max|y - X\beta -
+  e|} at the optimum; near 0 for a healthy fit), \code{converged},
+  \code{convergence},
   \code{method}, the resolved inputs \code{Z}, \code{p0}, \code{v},
   \code{w0}, \code{X}, \code{y}, \code{control} (retained so \code{summary()}
   can refit for the ER test), plus \code{terms}, \code{model},
@@ -160,6 +164,22 @@ warm-started refits.
 \item \code{print(summary.linreg)}: Print method for the summary object.
 
 }}
+\section{Support feasibility}{
+
+The dual is bounded below only if \code{y} can be represented as
+\eqn{X\beta + e} with every \eqn{\beta_k} inside its signal support \code{Z}
+and every \eqn{e_t} inside the noise support \code{v}. If it cannot, the dual
+is \strong{unbounded}: the multipliers diverge, the signal softmax saturates
+and \eqn{\beta} pins to a vertex of \code{Z} even though \code{optim} reports
+convergence. This is why the default \code{v} widens with \eqn{T} -- the
+largest of \eqn{T} errors grows like \eqn{\sigma\sqrt{2\log T}}, so a fixed
+three-sigma support becomes infeasible in large samples.
+\code{linreg()} checks the first-order condition \eqn{y - X\beta - e = 0} at
+the optimum, reports it as \code{foc_residual}, and \strong{warns} (setting
+\code{converged = FALSE}) when it is not satisfied. The remedy is a wider
+\code{v} and/or \code{Z}.
+}
+
 \examples{
 set.seed(1)
 d <- data.frame(x1 = rnorm(100), x2 = rnorm(100))

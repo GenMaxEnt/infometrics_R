@@ -168,11 +168,14 @@
 #'   term is a state. Usually written without an intercept, e.g.
 #'   \code{y ~ x1 + x2 + x3 - 1}.
 #' @param data A data frame (or environment) with one row per moment.
-#' @param v Noise support. One of: \code{NULL} (default 3-point support
-#'   \code{c(-3 s, 0, 3 s)} with \eqn{s = sd(y)}, the three-sigma rule); a
-#'   single whole number \code{M >= 2} (build an \code{M}-point symmetric
-#'   support); or an explicit numeric vector of support points (should be
-#'   symmetric around 0 for zero-mean noise).
+#' @param v Noise support. One of: \code{NULL} (default 3-point symmetric
+#'   support of half-width \eqn{\max(3, \sqrt{2\log T})\,s} with
+#'   \eqn{s = sd(y)}); a single whole number \code{M >= 2} (build an
+#'   \code{M}-point symmetric support); or an explicit numeric vector of support
+#'   points (should be symmetric around 0 for zero-mean noise). The default
+#'   widens with \code{T} rather than using a fixed three-sigma rule, because
+#'   the largest of \code{T} noise draws grows like \eqn{\sigma\sqrt{2\log T}};
+#'   see the \emph{Support feasibility} section.
 #' @param nu Entropy weight in \eqn{(0,1)} on the noise term; default 0.5
 #'   (equal-weight GME/GCE).
 #' @param p0 Prior signal probabilities, length K (= model-matrix columns);
@@ -196,10 +199,23 @@
 #'   \code{reltol} (default 1e-10).
 #' @param ... Currently unused.
 #'
+#' @section Support feasibility:
+#' The dual is bounded below only if \code{y} can be represented as
+#' \eqn{Xp + e} with \eqn{p} on the simplex and every \eqn{e_t} inside the noise
+#' support \code{v}. If it cannot, the dual is \strong{unbounded}: the
+#' multipliers diverge, the softmax saturates, and \code{p_hat} collapses to a
+#' vertex of the simplex (a 0/1 corner) even though \code{optim} reports
+#' convergence. \code{inverse_noise()} therefore checks the first-order
+#' condition \eqn{y - Xp - e = 0} at the optimum, reports it as
+#' \code{foc_residual}, and \strong{warns} when it is not satisfied. The remedy
+#' is a wider noise support \code{v}.
+#'
 #' @return An object of class \code{c("inverse_noise", "infometrics")}: a list
 #'   with components
 #'   \describe{
 #'     \item{\code{p_hat}}{Named K-vector of signal probabilities.}
+#'     \item{\code{foc_residual}}{\eqn{\max|y - Xp - e|} at the optimum; near 0
+#'       for a healthy fit (see \emph{Support feasibility}).}
 #'     \item{\code{lambda_hat}}{Named T-vector of Lagrange multipliers.}
 #'     \item{\code{w_hat}}{\code{T x M} matrix of noise probabilities.}
 #'     \item{\code{fitted.values}}{Signal-fitted moments \eqn{X p} (length T).}
@@ -301,17 +317,22 @@ inverse_noise <- function(formula, data, v = NULL, nu = 0.5,
   ## ---- resolve noise support v and prior w0 ------------------------------
   sdY  <- stats::sd(y)
   span <- if (is.finite(sdY) && sdY > 0) 3 * sdY else 3
+  ## The largest of Tn noise draws grows like sigma * sqrt(2 log Tn), so a
+  ## fixed 3-sigma support becomes infeasible at large Tn -- y is then not
+  ## representable as X p + e, the dual is unbounded below, lambda diverges
+  ## and p collapses to a vertex of the simplex. Widen the span with Tn.
+  espan <- max(3, sqrt(2 * log(max(Tn, 2L)))) / 3 * span
   is_count <- function(z) length(z) == 1L && is.finite(z) &&
                           abs(z - round(z)) < 1e-8
 
   if (is.null(v)) {
     M <- if (is.null(w0)) 3L else ncol(w0)
-    v <- seq(-span, span, length.out = M)
+    v <- seq(-espan, espan, length.out = M)
   } else if (is_count(v)) {
     M <- as.integer(round(v))
     if (M < 2L)
       stop("A scalar 'v' is read as a support-point count and must be >= 2.")
-    v <- seq(-span, span, length.out = M)
+    v <- seq(-espan, espan, length.out = M)
   } else {
     v <- as.vector(v)
     M <- length(v)
@@ -333,7 +354,7 @@ inverse_noise <- function(formula, data, v = NULL, nu = 0.5,
       warning("Rows of 'w0' did not sum to 1; renormalizing."); w0 <- w0 / rs0
     }
   }
-  if (abs(mean(v)) > 1e-8 * max(1, span))
+  if (abs(mean(v)) > 1e-8 * max(1, espan))
     warning("Noise support 'v' is not centered at 0; noise will not be ",
             "mean-zero.")
 
@@ -351,6 +372,19 @@ inverse_noise <- function(formula, data, v = NULL, nu = 0.5,
   w <- eng$w; e <- eng$e
   Ep <- eng$fitted; resid <- as.vector(y - Ep)
   hessian <- eng$hessian
+
+  ## ---- feasibility / unbounded-dual check --------------------------------
+  ## At the optimum the first-order condition is y - X p - e = 0. When the
+  ## supports cannot represent y the dual is unbounded below: optim walks off
+  ## to |lambda| -> Inf (still reporting convergence 0), the softmax saturates
+  ## and p collapses to a vertex, leaving this FOC residual far from 0.
+  foc <- max(abs(resid - e))
+  if (!all(is.finite(lambda)) || max(abs(lambda)) > 1e8 ||
+      foc > 1e-4 * max(1, sdY))
+    warning("The GME/GCE dual appears unbounded: the noise support is too ",
+            "narrow to represent y (max|y - X*p - e| = ",
+            format(foc, digits = 3), "). Estimates are unreliable and 'p' may ",
+            "collapse to a vertex of the simplex. Widen the noise support 'v'.")
 
   ## ---- normalized entropy: signal AND noise (mirror matrix_gce) ----------
   ent  <- function(mm) { z <- mm[mm > 0]; -sum(z * log(z)) }
@@ -388,6 +422,7 @@ inverse_noise <- function(formula, data, v = NULL, nu = 0.5,
       S_p           = S,
       S_w           = S_w,
       objective     = eng$objective,           # CLAUDE.md canonical field
+      foc_residual  = foc,                     # max|y - X p - e| at the optimum
       nu            = nu,
       prior         = p0,
       noise_prior   = w0,

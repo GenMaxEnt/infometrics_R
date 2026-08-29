@@ -599,6 +599,19 @@ and `X`/`y`/`control` (for SE recompute/bootstrap); it **drops** `converged`
 (keeps `convergence`) and the `p`/`lambda`/`w`/`e`/`value` aliases.
 
 ### Support spaces
+**Feasibility is the binding constraint (v0.3.0 bug fix).** The concentrated
+dual is bounded below *only* if `y` is representable within the supports
+(`y = Xβ + e`, β ∈ Z, e ∈ v). If it is not, the dual is **unbounded**: λ
+diverges (~1e22), the softmax saturates, and β/p pin to a support **vertex**
+— while `optim` still returns `convergence = 0`. The largest of T errors grows
+like `σ√(2 log T)`, so a *fixed* 3σ noise support becomes infeasible past a few
+thousand observations. Hence: (1) `linreg`/`inverse_noise` default the **error**
+span to `max(3, √(2 log T))·sd(y)` (T-aware; the signal span `Z` stays `3·sd(y)`
+since β does not grow with T); (2) both check the FOC `y − Xβ − e = 0` at the
+optimum, store it as **`foc_residual`**, and **warn** when violated (`linreg`
+also sets `converged = FALSE`). Never diagnose a vertex solution as an optimizer
+failure — check feasibility first.
+
 Support spaces Z (for β) and V (for ε) are the user's most consequential
 input in GME/GCE. Always:
 1. Validate that the support is symmetric around zero for V (error support).

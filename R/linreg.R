@@ -121,13 +121,29 @@
 #' @param p0 Prior signal probabilities, a K-by-M matrix matching \code{Z};
 #'   strictly positive rows summing to 1. Default uniform.
 #' @param v,w0 Noise support and prior, as in \code{\link{inverse_noise}}:
-#'   \code{v} is \code{NULL} (3-point default), a whole-number support count,
-#'   or an explicit vector; \code{w0} is a strictly-positive T-by-J matrix with
+#'   \code{v} is \code{NULL} (3-point default of half-width
+#'   \eqn{\max(3, \sqrt{2\log T})\,sd(y)}, which widens with the sample size --
+#'   see \emph{Support feasibility}), a whole-number support count, or an
+#'   explicit vector; \code{w0} is a strictly-positive T-by-J matrix with
 #'   rows summing to 1 (default uniform).
 #' @param control A named list merged over the defaults and passed to
 #'   \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 500) and
 #'   \code{reltol} (default 1e-12).
 #' @param ... Currently unused.
+#'
+#' @section Support feasibility:
+#' The dual is bounded below only if \code{y} can be represented as
+#' \eqn{X\beta + e} with every \eqn{\beta_k} inside its signal support \code{Z}
+#' and every \eqn{e_t} inside the noise support \code{v}. If it cannot, the dual
+#' is \strong{unbounded}: the multipliers diverge, the signal softmax saturates
+#' and \eqn{\beta} pins to a vertex of \code{Z} even though \code{optim} reports
+#' convergence. This is why the default \code{v} widens with \eqn{T} -- the
+#' largest of \eqn{T} errors grows like \eqn{\sigma\sqrt{2\log T}}, so a fixed
+#' three-sigma support becomes infeasible in large samples.
+#' \code{linreg()} checks the first-order condition \eqn{y - X\beta - e = 0} at
+#' the optimum, reports it as \code{foc_residual}, and \strong{warns} (setting
+#' \code{converged = FALSE}) when it is not satisfied. The remedy is a wider
+#' \code{v} and/or \code{Z}.
 #'
 #' @return An object of class \code{c("linreg", "infometrics")}: a list with
 #'   \code{coefficients} (\eqn{\beta}, named by the model-matrix columns),
@@ -139,7 +155,9 @@
 #'   per-coefficient signal entropies), \code{S} (signal normalized entropy
 #'   \eqn{H(\hat{p})/H(p_0)}; reduces to \eqn{H/(K\log M)} for a uniform prior
 #'   and can exceed 1 for a strongly informative prior),
-#'   \code{objective}/\code{value}, \code{converged}, \code{convergence},
+#'   \code{objective}/\code{value}, \code{foc_residual} (\eqn{\max|y - X\beta -
+#'   e|} at the optimum; near 0 for a healthy fit), \code{converged},
+#'   \code{convergence},
 #'   \code{method}, the resolved inputs \code{Z}, \code{p0}, \code{v},
 #'   \code{w0}, \code{X}, \code{y}, \code{control} (retained so \code{summary()}
 #'   can refit for the ER test), plus \code{terms}, \code{model},
@@ -189,6 +207,13 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
   ## ---- coefficient support Z and prior p0 (K x M) ------------------------
   sdY  <- stats::sd(y)
   span <- if (is.finite(sdY) && sdY > 0) 3 * sdY else 3
+  ## Error-support span. The largest of Tn errors grows like
+  ## sigma * sqrt(2 log Tn), so a fixed 3-sigma noise support becomes
+  ## infeasible at large Tn -- y is then not representable as X beta + e, the
+  ## dual is unbounded below, lambda diverges and beta pins to a support
+  ## vertex. Widen the *error* span with Tn; the signal span (Z) is unchanged,
+  ## since beta does not grow with the sample size.
+  espan <- max(3, sqrt(2 * log(max(Tn, 2L)))) / 3 * span
   if (is.null(Z)) Z <- seq(-span, span, length.out = 5L)
   if (is.null(dim(Z)))
     Z <- matrix(Z, nrow = K, ncol = length(Z), byrow = TRUE)   # shared support
@@ -212,11 +237,11 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
   is_count <- function(z) length(z) == 1L && is.finite(z) && abs(z - round(z)) < 1e-8
   if (is.null(v)) {
     J <- if (is.null(w0)) 3L else ncol(w0)
-    v <- seq(-span, span, length.out = J)
+    v <- seq(-espan, espan, length.out = J)
   } else if (is_count(v)) {
     J <- as.integer(round(v))
     if (J < 2L) stop("Scalar 'v' is read as a support-point count and must be >= 2.")
-    v <- seq(-span, span, length.out = J)
+    v <- seq(-espan, espan, length.out = J)
   } else { v <- as.vector(v); J <- length(v); if (J < 2L) stop("'v' needs >= 2 points.") }
   if (is.null(w0)) {
     w0 <- matrix(1 / J, Tn, J)
@@ -228,7 +253,7 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
     rw <- rowSums(w0)
     if (any(abs(rw - 1) > 1e-8)) { warning("Rows of 'w0' renormalized."); w0 <- w0 / rw }
   }
-  if (abs(mean(v)) > 1e-8 * max(1, span))
+  if (abs(mean(v)) > 1e-8 * max(1, espan))
     warning("Noise support 'v' is not centered at 0; noise will not be mean-zero.")
 
   ## ---- optimize via the shared engine ------------------------------------
@@ -242,6 +267,20 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
   p <- eng$p; beta <- eng$beta; names(beta) <- cn; rownames(p) <- cn
   w <- eng$w; e <- eng$e
   yhat <- as.vector(X %*% beta); resid <- y - yhat
+
+  ## ---- feasibility / unbounded-dual check --------------------------------
+  ## At the optimum the first-order condition is y - X beta - e = 0. If the
+  ## supports cannot represent y, the dual is unbounded below: optim walks off
+  ## to |lambda| -> Inf (still reporting convergence 0), the softmax saturates
+  ## and beta pins to a support vertex, leaving this FOC residual far from 0.
+  foc <- max(abs(resid - e))
+  diverged <- !all(is.finite(lambda)) || max(abs(lambda)) > 1e8 ||
+              foc > 1e-4 * max(1, sdY)
+  if (diverged)
+    warning("The GME/GCE dual appears unbounded: the supports are too narrow ",
+            "to represent y (max|y - X*beta - e| = ", format(foc, digits = 3),
+            "). Estimates are unreliable and beta may sit on the boundary of ",
+            "the signal support. Widen the error support 'v' (and/or 'Z').")
 
   ## ---- analytic dual Hessian (positive definite) ------------------------
   ## H = (1/(1-nu)) X diag(Var_p(Z)) X'  +  (1/nu) diag(Var_w(v))
@@ -291,7 +330,8 @@ linreg <- function(formula, data, Z = NULL, nu = 0.5,
       S             = S,
       objective     = eng$value,               # CLAUDE.md canonical field
       value         = eng$value,
-      converged     = (eng$convergence == 0L), # CLAUDE.md canonical field
+      foc_residual  = foc,                     # max|y - X beta - e| at optimum
+      converged     = (eng$convergence == 0L) && !diverged,
       convergence   = eng$convergence,
       method        = "dual",                  # CLAUDE.md canonical field
       ## resolved inputs retained so summary() can refit for the ER test
