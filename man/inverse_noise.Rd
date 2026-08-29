@@ -47,11 +47,14 @@ term is a state. Usually written without an intercept, e.g.
 
 \item{data}{A data frame (or environment) with one row per moment.}
 
-\item{v}{Noise support. One of: \code{NULL} (default 3-point support
-\code{c(-3 s, 0, 3 s)} with \eqn{s = sd(y)}, the three-sigma rule); a
-single whole number \code{M >= 2} (build an \code{M}-point symmetric
-support); or an explicit numeric vector of support points (should be
-symmetric around 0 for zero-mean noise).}
+\item{v}{Noise support. One of: \code{NULL} (default 3-point symmetric
+support of half-width \eqn{\max(3, \sqrt{2\log T})\,s} with
+\eqn{s = sd(y)}); a single whole number \code{M >= 2} (build an
+\code{M}-point symmetric support); or an explicit numeric vector of support
+points (should be symmetric around 0 for zero-mean noise). The default
+widens with \code{T} rather than using a fixed three-sigma rule, because
+the largest of \code{T} noise draws grows like \eqn{\sigma\sqrt{2\log T}};
+see the \emph{Support feasibility} section.}
 
 \item{nu}{Entropy weight in \eqn{(0,1)} on the noise term; default 0.5
 (equal-weight GME/GCE).}
@@ -94,6 +97,8 @@ An object of class \code{c("inverse_noise", "infometrics")}: a list
   with components
   \describe{
     \item{\code{p_hat}}{Named K-vector of signal probabilities.}
+    \item{\code{foc_residual}}{\eqn{\max|y - Xp - e|} at the optimum; near 0
+      for a healthy fit (see \emph{Support feasibility}).}
     \item{\code{lambda_hat}}{Named T-vector of Lagrange multipliers.}
     \item{\code{w_hat}}{\code{T x M} matrix of noise probabilities.}
     \item{\code{fitted.values}}{Signal-fitted moments \eqn{X p} (length T).}
@@ -210,6 +215,19 @@ All three mildly understate (~15-20\%) because the finite-support entropy
 penalty shrinks the fitted noise below the true noise dispersion (the
 bootstrap shows the same, so it is a property of the estimator and of an
 over-wide support, not a bug).
+}
+
+\section{Support feasibility}{
+
+The dual is bounded below only if \code{y} can be represented as
+\eqn{Xp + e} with \eqn{p} on the simplex and every \eqn{e_t} inside the noise
+support \code{v}. If it cannot, the dual is \strong{unbounded}: the
+multipliers diverge, the softmax saturates, and \code{p_hat} collapses to a
+vertex of the simplex (a 0/1 corner) even though \code{optim} reports
+convergence. \code{inverse_noise()} therefore checks the first-order
+condition \eqn{y - Xp - e = 0} at the optimum, reports it as
+\code{foc_residual}, and \strong{warns} when it is not satisfied. The remedy
+is a wider noise support \code{v}.
 }
 
 \section{Formula orientation}{

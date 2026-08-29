@@ -249,3 +249,36 @@ test_that("summary honors an alternative se_method", {
   expect_equal(s_d$se_method, "delta")
   expect_output(print(s_d), "delta")
 })
+
+test_that("a healthy fit reports a near-zero first-order-condition residual", {
+  fit <- inverse_noise(f3, data = make_reg_data())
+  expect_true(is.numeric(fit$foc_residual))
+  expect_lt(fit$foc_residual, 1e-4)
+  # at the optimum the moment residual IS the estimated noise
+  e_hat <- as.vector(fit$w_hat %*% fit$support)
+  expect_lt(max(abs(as.vector(residuals(fit)) - e_hat)), 1e-4)
+})
+
+test_that("an infeasibly narrow noise support warns (unbounded dual)", {
+  d <- make_reg_data()
+  expect_warning(inverse_noise(f3, data = d, v = c(-1e-4, 0, 1e-4)),
+                 "unbounded")
+  fit <- suppressWarnings(inverse_noise(f3, data = d, v = c(-1e-4, 0, 1e-4)))
+  expect_gt(fit$foc_residual, 1e-4)
+})
+
+test_that("default noise support widens with the number of moments", {
+  set.seed(11)
+  mk <- function(n) {
+    X <- matrix(runif(3 * n), nrow = n, ncol = 3)
+    data.frame(y = as.vector(X %*% c(0.5, 0.2, 0.3)) + rnorm(n, 0, 0.3),
+               x1 = X[, 1], x2 = X[, 2], x3 = X[, 3])
+  }
+  f_small <- inverse_noise(f3, data = mk(10L),   se_method = "none")
+  f_big   <- inverse_noise(f3, data = mk(2000L), se_method = "none")
+  k_small <- max(f_small$support) / stats::sd(f_small$y)
+  k_big   <- max(f_big$support)   / stats::sd(f_big$y)
+  expect_equal(k_small, 3, tolerance = 1e-6)              # T=10 -> still 3
+  expect_gt(k_big, k_small)
+  expect_equal(k_big, sqrt(2 * log(2000)), tolerance = 1e-6)
+})

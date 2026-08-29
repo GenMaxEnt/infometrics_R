@@ -1,5 +1,32 @@
 # infometrics 0.3.0
 
+## Bug fix: `linreg()` / `inverse_noise()` silently returned support vertices in large samples
+
+Both functions defaulted the noise support to a fixed three-sigma rule,
+`v = c(-3s, 0, 3s)` with `s = sd(y)`. Because the largest of `T` errors grows
+like `sigma * sqrt(2 log T)`, that support becomes **infeasible** once `T` is
+more than a few thousand: `y` can no longer be written as `X beta + e` within
+the supports, the concentrated dual is then **unbounded below**, the multipliers
+diverge, and the estimates collapse to a vertex of the support (e.g.
+`beta = (3, -3, 3)`, or `p = (0, 1, 0)`) -- while `optim()` still reported
+`convergence = 0` and no warning was given.
+
+Two changes fix this:
+
+* The **default noise support now widens with the sample size**, using a
+  half-width of `max(3, sqrt(2 log T)) * sd(y)`. On a 10,000-observation
+  regression the default fit now recovers the OLS coefficients (previously it
+  returned a support vertex). The signal support `Z` is unchanged, since `beta`
+  does not grow with `T`. An explicitly supplied `v` is never modified.
+* Both functions now **check the first-order condition** `y - X beta - e = 0`
+  at the optimum, report it as the new `foc_residual` field, and **warn** when
+  it is violated -- which catches every infeasible-support case, including a
+  too-narrow `Z`. `linreg()` additionally reports `converged = FALSE`.
+
+**Behaviour change:** fits that relied on the default `v` with more than about
+90 observations will shift slightly, since the default support is now a little
+wider (results were unchanged to two decimals at n = 30-150 in testing).
+
 ## `linreg_iv()` now reports standard errors
 
 `linreg_iv()` gains standard errors for the coefficients via a new

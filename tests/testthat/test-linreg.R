@@ -111,6 +111,64 @@ test_that("entropy S in [0, 1] and r.squared in a sensible range", {
   expect_length(fit$H_signal, 3)               # per-coefficient signal entropy
 })
 
+test_that("large-T fit with default supports stays feasible (no vertex collapse)", {
+  # Regression test: with a fixed 3-sigma noise support the dual becomes
+  # unbounded once T is large (max|error| ~ sigma*sqrt(2 log T) exceeds it) and
+  # beta used to pin to a support vertex. The T-aware default must recover OLS.
+  set.seed(123)
+  n <- 4000L
+  X <- matrix(runif(3 * n), nrow = n, ncol = 3)
+  y <- as.vector(X %*% c(0.5, 0.2, 0.3)) + rnorm(n, 0, 0.3)
+  d <- data.frame(y = y, x1 = X[, 1], x2 = X[, 2], x3 = X[, 3])
+
+  fit  <- linreg(y ~ x1 + x2 + x3 - 1, data = d)          # default v
+  bols <- as.vector(solve(crossprod(X), crossprod(X, y)))
+
+  expect_true(fit$converged)
+  expect_lt(fit$foc_residual, 1e-4)                        # FOC satisfied
+  expect_lt(max(abs(unname(coef(fit)) - bols)), 0.05)      # ~ OLS
+  # and NOT sitting on the boundary of the signal support
+  expect_lt(max(abs(coef(fit))), 0.9 * max(abs(fit$Z)))
+})
+
+test_that("default noise support widens with the sample size", {
+  set.seed(4)
+  mk <- function(n) { x <- rnorm(n)
+    data.frame(y = 1 + 0.5 * x + rnorm(n, 0, 1), x = x) }
+  f_small <- linreg(y ~ x, data = mk(50L))                 # sqrt(2 log 50) < 3
+  f_big   <- linreg(y ~ x, data = mk(5000L))
+  # half-width multiple of sd(y): max(3, sqrt(2 log T))
+  k_small <- max(f_small$v) / stats::sd(f_small$y)
+  k_big   <- max(f_big$v)   / stats::sd(f_big$y)
+  expect_gt(k_big, k_small)
+  expect_equal(k_small, 3, tolerance = 1e-6)               # n=50 -> floor at 3
+  expect_equal(k_big, sqrt(2 * log(5000)), tolerance = 1e-6)
+})
+
+test_that("an infeasibly narrow noise support warns and flags non-convergence", {
+  d <- make_reg_data()
+  expect_warning(
+    fit <- linreg(y ~ x1 + x2, data = d, Z = seq(-20, 20, length.out = 5),
+                  v = c(-1e-3, 0, 1e-3)),
+    "unbounded"
+  )
+  fit <- suppressWarnings(
+    linreg(y ~ x1 + x2, data = d, Z = seq(-20, 20, length.out = 5),
+           v = c(-1e-3, 0, 1e-3)))
+  expect_false(fit$converged)
+  expect_gt(fit$foc_residual, 1e-4)
+})
+
+test_that("a healthy fit is silent and satisfies the first-order condition", {
+  d <- make_reg_data()
+  expect_silent(fit <- linreg(y ~ x1 + x2, data = d,
+                              Z = seq(-20, 20, length.out = 5)))
+  expect_lt(fit$foc_residual, 1e-4)
+  expect_true(fit$converged)
+  # residuals equal the estimated noise at the optimum
+  expect_lt(max(abs(unname(residuals(fit)) - unname(fit$e))), 1e-4)
+})
+
 test_that("normalized entropy S is prior-relative (Golan 2008, Sec. 6.4)", {
   d  <- make_reg_data()
   Zc <- seq(-20, 20, length.out = 5)
