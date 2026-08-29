@@ -88,7 +88,8 @@ An object of class \code{c("inverse_ce", "infometrics")}: a list
 Estimates the K-dimensional distribution \code{p} closest (in
 Kullback-Leibler divergence) to a prior \code{p0} subject to the T pure
 moment constraints \eqn{y = X p}, by solving the unconstrained dual
-(concentrated) model of Golan (2008, Section 4.2). This is the
+(concentrated) model of Golan (2008, Section 4.2; see also Golan, Judge &
+Miller, 1996, Ch. 3). This is the
 \code{\link[stats]{lm}}-style formula interface to the maximum-entropy /
 cross-entropy problem, where a uniform prior \code{p0} gives Maximum Entropy;
 a non-uniform \code{p0} gives Cross-Entropy (hence the name).
@@ -189,7 +190,9 @@ fano_bounds(fit)   # Fano error bound for the recovered p
 Golan, A. (2008). \emph{Information and Entropy Econometrics -
   A Review and Synthesis}. Foundations and Trends in Econometrics,
   2(1-2), 1-145. Section 4.2. Cover, T. M. & Thomas, J. A. (2006).
-  \emph{Elements of Information Theory}, 2nd ed., Ch. 17.
+  \emph{Elements of Information Theory}, 2nd ed., Ch. 17. Golan, A.,
+  Judge, G. and Miller, D. (1996). \emph{Maximum Entropy Econometrics:
+  Robust Estimation with Limited Data}. Wiley. Chapter 3.
 }
 \seealso{
 \code{\link{inverse_noise}} for the stochastic-moment (GME/GCE)
