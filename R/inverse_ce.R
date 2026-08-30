@@ -57,8 +57,8 @@
 #' @section Information-matrix standard errors:
 #' The Hessian above \emph{is} the Fisher information matrix of the multipliers,
 #' \eqn{I(\lambda) = \mathrm{Cov}_p(\text{moments})}, so its inverse gives their
-#' covariance \eqn{\mathrm{Var}(\lambda) = I^{-1}(\lambda)} (Golan 2008, Eq.
-#' ce-vcov-lambda; Cover & Thomas, 2006, Ch. 17). \code{inverse_ce()} reports the
+#' covariance \eqn{\mathrm{Var}(\lambda) = I^{-1}(\lambda)} (Golan 2008, p. 59;
+#' Cover & Thomas, 2006, Ch. 17). \code{inverse_ce()} reports the
 #' resulting \code{se_lambda}, the delta-method probability SEs
 #' \code{se_p} (\eqn{\mathrm{Var}(p) = J\,I^{-1}J'} with
 #' \eqn{J_{kt} = \partial p_k/\partial\lambda_t = p_k(x_{tk}-E_p[x_t])}), and the
