@@ -146,17 +146,71 @@
 #'   \code{\link[stats]{optim}} (BFGS): \code{maxit} (default 1000) and
 #'   \code{reltol} (default 1e-12). \code{fnscale} is forced to -1.
 #'
-#' @return An object of class \code{c("mixed_gce", "infometrics")} with
-#'   \code{lambda}/\code{lambda_hat} (K x J; \code{coef()} returns it),
-#'   \code{rho}/\code{rho_hat} (N), \code{theta}/\code{theta_hat} (N x J x M),
-#'   \code{p}/\code{p_hat}/\code{fitted.values} (N x J), \code{w}/\code{w_hat}
-#'   (N x J x H), \code{e}/\code{e_hat} (N x J), \code{V}, standard errors
-#'   \code{se_lambda} (K x J)/\code{se_rho} (N)/\code{vcov} (via the dual
-#'   Hessian), the stored inputs and supports, entropy diagnostics
-#'   \code{H_signal} (N), \code{S_p}/\code{S_w}/\code{S},
-#'   \code{objective}/\code{value}, \code{converged}/\code{convergence},
-#'   \code{method}, dims \code{N}/\code{J}/\code{K}/\code{M}/\code{H}, and
-#'   \code{call}.
+#' @return
+#' An object of class \code{c("mixed_gce", "infometrics")}, which is a list
+#' containing the following components:
+#' \describe{
+#'   \item{\code{lambda}, \code{lambda_hat}}{K-by-J matrix of estimated
+#'     coefficients (two names for the same object). Extracted by
+#'     \code{\link{coef}}.}
+#'   \item{\code{rho}, \code{rho_hat}}{Numeric vector of length N: the
+#'     per-observation adding-up multipliers enforcing
+#'     \eqn{\sum_j p_{ij} = 1}{sum_j p_ij = 1} (two names for the same object).}
+#'   \item{\code{theta}, \code{theta_hat}}{N-by-J-by-M array of
+#'     doubly-reparameterized signal weights, each \eqn{(i,j)} fiber summing to
+#'     1, with
+#'     \eqn{p_{ij} = \sum_m s_m \theta_{ijm}}{p_ij = sum_m s_m theta_ijm} (two
+#'     names for the same object).}
+#'   \item{\code{p}, \code{p_hat}, \code{fitted.values}}{N-by-J matrix of
+#'     estimated signal probabilities, rows summing to 1 (three names for the
+#'     same object). Extracted by \code{\link{fitted}}.}
+#'   \item{\code{w}, \code{w_hat}}{N-by-J-by-H array of estimated noise
+#'     probabilities, each \eqn{(i,j)} fiber summing to 1 (two names for the
+#'     same object).}
+#'   \item{\code{e}, \code{e_hat}}{N-by-J matrix of estimated noise,
+#'     \eqn{e_{ij} = \sum_h u_h \hat w_{ijh}}{e_ij = sum_h u_h w-hat_ijh} (two
+#'     names for the same object). The residuals returned by
+#'     \code{\link{residuals}} are \eqn{Y - \hat p - e}{Y - p-hat - e}.}
+#'   \item{\code{V}}{N-by-J matrix of linear indices
+#'     \eqn{V_{ij} = \sum_k X_{ijk}\lambda_{kj}}{V_ij = sum_k X_ijk lambda_kj}.}
+#'   \item{\code{vcov}}{Covariance matrix of the full parameter vector from the
+#'     dual Hessian, of dimension \eqn{(N + KJ) \times (N + KJ)}{(N + KJ) x (N + KJ)}
+#'     with the \eqn{\rho}{rho} block first, then \eqn{\lambda}{lambda}. \code{NA}
+#'     throughout if the Hessian was singular. Extracted by \code{\link{vcov}}.}
+#'   \item{\code{se_lambda}, \code{se_rho}}{Standard errors of
+#'     \eqn{\hat\lambda}{lambda-hat} (K-by-J) and \eqn{\hat\rho}{rho-hat}
+#'     (length N), taken from \code{vcov}. Being the naive Hessian inverse these
+#'     are conservative; for accurate marginal-effect standard errors use
+#'     \code{\link{margins}} with \code{se = TRUE}.}
+#'   \item{\code{hessian}}{Dual Hessian at the optimum, of the same dimension as
+#'     \code{vcov}.}
+#'   \item{\code{X}, \code{y_mat}}{The resolved design array (N-by-J-by-K) and
+#'     response matrix (N-by-J).}
+#'   \item{\code{s}, \code{u}}{The resolved signal support (length M, in
+#'     \eqn{[0,1]}) and noise support (length H, symmetric in \eqn{[-1,1]}).}
+#'   \item{\code{theta0}, \code{w0}, \code{nu}}{The resolved signal prior
+#'     (N-by-J-by-M), noise prior (N-by-J-by-H) and entropy weight.}
+#'   \item{\code{H_signal}}{Numeric vector of length N: the per-observation
+#'     signal entropies of \eqn{\hat\theta}{theta-hat}, summed over the J
+#'     categories and M support points.}
+#'   \item{\code{S}, \code{S_p}}{Single number: the normalized signal entropy
+#'     \eqn{H(\hat\theta)/(NJ\log M)}{H(theta-hat)/(N J log M)}, in [0, 1] (two
+#'     names for the same value). It is measured against the uniform
+#'     distribution, not against \code{theta0}.}
+#'   \item{\code{S_w}}{Single number: the normalized noise entropy
+#'     \eqn{H(\hat w)/(NJ\log H)}{H(w-hat)/(N J log H)}, in [0, 1].}
+#'   \item{\code{objective}, \code{value}}{Single number: the maximized dual
+#'     objective (two names for the same value).}
+#'   \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+#'     convergence code.}
+#'   \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+#'     convergence.}
+#'   \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+#'   \item{\code{N}, \code{J}, \code{K}, \code{M}, \code{H}}{Integers: the
+#'     numbers of observations, categories, covariates, signal support points
+#'     and noise support points.}
+#'   \item{\code{call}}{The matched call.}
+#' }
 #'
 #' @references
 #' Golan, A., Judge, G. and Perloff, J.M. (1996). A maximum entropy approach to

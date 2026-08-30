@@ -41,15 +41,63 @@ count, or an explicit numeric vector in \eqn{[-1, 1]}.}
 (default 1e-10). \code{fnscale} is forced to -1 (the dual is maximized).}
 }
 \value{
-An object of class \code{c("multinomial_gce", "infometrics")}. Key
-  components: \code{lambda}/\code{lambda_hat} (K x J, reference column 0;
-  \code{coef()} returns it), \code{p}/\code{p_hat}/\code{fitted.values}
-  (N x J), \code{w}/\code{w_hat} (N x J x M), \code{ee}/\code{e} (N x J),
-  \code{se}/\code{vcov}, \code{p0}, \code{w0}, \code{v}, \code{nu},
-  \code{which_alternative}, \code{H_signal} (N-vector), \code{S_p}/\code{S_w}/
-  \code{S}, \code{value}/\code{objective}, \code{convergence}/\code{converged},
-  \code{method}, \code{X}, \code{y_mat}, \code{n_misses}, \code{N}/\code{J}/
-  \code{K}/\code{M}, \code{call}.
+An object of class \code{c("multinomial_gce", "infometrics")}, which is a
+list containing the following components:
+\describe{
+  \item{\code{lambda}, \code{lambda_hat}}{K-by-J matrix of estimated Lagrange
+    multipliers (two names for the same object). The reference alternative's
+    column is 0. Extracted by \code{\link{coef}}.}
+  \item{\code{p}, \code{p_hat}, \code{fitted.values}}{N-by-J matrix of
+    estimated signal probabilities, rows summing to 1 (three names for the
+    same object). Extracted by \code{\link{fitted}}.}
+  \item{\code{w}, \code{w_hat}}{N-by-J-by-M array of estimated noise
+    probabilities, each \eqn{(i,j)} fiber summing to 1 (two names for the
+    same object).}
+  \item{\code{ee}, \code{e}}{N-by-J matrix of estimated noise,
+    \eqn{e_{ij} = \sum_m v_m \hat w_{ijm}}{e_ij = sum_m v_m w-hat_ijm} (two
+    names for the same object). The residuals returned by
+    \code{\link{residuals}} are \eqn{y - \hat p - e}{y - p-hat - e}.}
+  \item{\code{p0}, \code{w0}, \code{v}, \code{nu}}{The resolved signal prior
+    (N-by-J), noise prior (N-by-J-by-M), noise support (length M) and entropy
+    weight.}
+  \item{\code{objective}, \code{value}}{Single number: the maximized dual
+    objective (two names for the same value).}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{H_signal}}{Numeric vector of length N: the per-observation
+    signal entropies \eqn{H(\hat p_i)}{H(p-hat_i)}.}
+  \item{\code{S}}{Single number: \code{S_p + S_w}, so it lies in [0, 2]. Note
+    that this differs from the other estimators in the package, where
+    \code{S} is the normalized signal entropy alone.}
+  \item{\code{S_p}, \code{S_w}}{Single numbers: the normalized signal and
+    noise entropies, \eqn{H(\hat p)/(N\log J)}{H(p-hat)/(N log J)} and
+    \eqn{H(\hat w)/(NJ\log M)}{H(w-hat)/(N J log M)}, each in [0, 1]. These
+    are measured against the uniform distribution, not against \code{p0} and
+    \code{w0}.}
+  \item{\code{y_mat}, \code{X}}{The resolved response matrix (N-by-J) and
+    design matrix (N-by-K).}
+  \item{\code{se}}{K-by-J matrix of standard errors of
+    \eqn{\hat\lambda}{lambda-hat}. The reference alternative's column is 0
+    (that alternative is normalized, not estimated). These come from the
+    naive Hessian inverse and are conservative; for accurate marginal-effect
+    standard errors use \code{\link{margins}} with \code{se = TRUE}.}
+  \item{\code{vcov}}{Covariance matrix of the \emph{free} multipliers, of
+    dimension \eqn{K(J-1) \times K(J-1)}{K(J-1) x K(J-1)} -- the reference
+    alternative is excluded. \code{NA} throughout if the Hessian was
+    singular.}
+  \item{\code{hessian}}{Dual Hessian at the optimum, over the same free
+    multipliers as \code{vcov}.}
+  \item{\code{which_alternative}}{Integer: the index of the reference
+    alternative.}
+  \item{\code{n_misses}}{Integer: the number of observations whose modal
+    fitted alternative differs from the modal observed one.}
+  \item{\code{N}, \code{J}, \code{K}, \code{M}}{Integers: the numbers of
+    observations, alternatives, covariates and noise support points.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Fits an unordered multinomial response model by the Generalized Cross-Entropy
