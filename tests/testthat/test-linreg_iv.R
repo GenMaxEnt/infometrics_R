@@ -89,6 +89,37 @@ test_that("canonical aliases and S3 methods are present and consistent", {
   expect_output(print(summary(fit)), "Coefficients")
 })
 
+test_that("large samples stay feasible: beta tracks 2SLS, no vertex collapse", {
+  # linreg_iv imposes only the P aggregate instrument moments, not one dual
+  # condition per observation, so (unlike linreg / inverse_noise) its fixed
+  # three-sigma error support does NOT become infeasible as n grows.
+  set.seed(1)
+  n  <- 5000L
+  z  <- rnorm(n); u <- rnorm(n); xe <- 0.7 * z + u + rnorm(n)
+  y  <- 1 + 1.5 * xe + u
+  X  <- cbind(1, xe); IV <- cbind(1, z)
+  Zc <- matrix(c(-10, 0, 10), nrow = 2, ncol = 3, byrow = TRUE)
+
+  fit <- linreg_iv(y, X, IV, Zc, se_method = "none")     # default error support
+  b2  <- as.vector(solve(crossprod(IV, X), crossprod(IV, y)))
+
+  expect_lt(max(abs(unname(coef(fit)) - b2)), 0.01)      # tracks exact IV
+  # not pinned to the boundary of the signal support
+  expect_lt(max(abs(coef(fit))), 0.9 * max(abs(Zc)))
+  # multipliers stay small (they diverge when a dual is unbounded)
+  expect_lt(max(abs(fit$lambda_hat)), 1)
+})
+
+test_that("beta is insensitive to the width of the error support", {
+  # Consequence of the same structural property: the noise never has to absorb
+  # individual residuals, so v is not the binding input (Z is).
+  d <- sim_iv(n = 300L)
+  wide   <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K), se_method = "none")
+  narrow <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K), v = c(-0.05, 0, 0.05),
+                      se_method = "none")
+  expect_lt(max(abs(unname(coef(wide)) - unname(coef(narrow)))), 0.01)
+})
+
 test_that("standard errors: sandwich (default) finite, PD, K x K", {
   d <- sim_iv(n = 200L)
   fit <- linreg_iv(d$y, d$X, d$IV, wideZ(d$K))

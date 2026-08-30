@@ -33,13 +33,17 @@ support for \eqn{\beta_k} (as in \code{\link{linreg}}).}
 default uniform.}
 
 \item{v}{Optional error support: \code{NULL} (default 3-point symmetric grid
-on \eqn{\pm 3\,\mathrm{sd}(y)}), a single whole number giving the number of
-support points, or an explicit numeric vector.}
+on \eqn{\pm 3\,\mathrm{sd}(y)}, the three-sigma rule), a single whole number
+giving the number of support points, or an explicit numeric vector. Unlike
+\code{\link{linreg}}, this default does \emph{not} need to widen with the
+sample size; see \emph{Choosing the supports}.}
 
 \item{w0}{Optional N-by-J error prior (rows strictly positive, summing to 1);
 default uniform.}
 
-\item{nu}{Signal/noise entropy weight in \eqn{(0,1)}; default 0.5.}
+\item{nu}{Entropy weight in \eqn{(0,1)} on the noise term, hence the weight
+on the signal is \eqn{1-\nu}; default 0.5 (equal weight on both the signal
+and the noise).}
 
 \item{se_method}{Standard-error method: \code{"sandwich"} (default, robust),
 \code{"delta"} (classical), \code{"bootstrap"} (pairs resampling), or
@@ -54,16 +58,51 @@ maximized).}
 \code{se_method = "bootstrap"} (default 200).}
 }
 \value{
-An object of class \code{c("linreg_iv", "infometrics")} with
-  \code{coefficients}/\code{b_hat} (\eqn{\beta}, length K; \code{coef()}
-  returns it), \code{lambda_hat} (length P, original instrument scale),
-  \code{p_hat} (K-by-M), \code{w_hat} (N-by-J), \code{e_hat}/\code{e} (N),
-  \code{fitted.values} (\eqn{X\beta}), \code{residuals} (\eqn{y - X\beta}),
-  \code{H_signal} (K-vector), \code{S}, \code{objective}/\code{value},
-  \code{moment_resid}, \code{converged}/\code{convergence}, \code{method},
-  \code{se_beta} (K-vector) and \code{vcov} (K-by-K) with \code{se_method},
-  plus \code{Z}, \code{p0}, \code{v}, \code{w0}, \code{nu}, \code{X},
-  \code{y}, \code{IV}, \code{N}/\code{K}/\code{P}/\code{M}, \code{call}.
+An object of class \code{c("linreg_iv", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{coefficients}, \code{b_hat}}{Numeric vector of length K: the
+    estimated coefficients \eqn{\hat\beta = Z\hat p}{beta-hat = Z p-hat}
+    (two names for the same object). Extracted by \code{\link{coef}}.}
+  \item{\code{lambda_hat}}{Numeric vector of length P: the estimated Lagrange
+    multipliers, one per instrument moment, reported on the original
+    instrument scale.}
+  \item{\code{p_hat}}{K-by-M matrix of estimated signal probabilities.}
+  \item{\code{w_hat}}{N-by-J matrix of estimated noise probabilities.}
+  \item{\code{e_hat}, \code{e}}{Numeric vector of length N: the estimated
+    noise, \eqn{e_i = \sum_j v_j w_{ij}} (two names for the same object).}
+  \item{\code{fitted.values}}{Numeric vector of length N:
+    \eqn{X\hat\beta}{X beta-hat}. Extracted by \code{\link{fitted}}.}
+  \item{\code{residuals}}{Numeric vector of length N:
+    \eqn{y - X\hat\beta}{y - X beta-hat}. Extracted by
+    \code{\link{residuals}}.}
+  \item{\code{se_beta}}{Numeric vector of length K: standard errors of
+    \eqn{\hat\beta}{beta-hat}, or \code{NULL} when
+    \code{se_method = "none"}.}
+  \item{\code{vcov}}{K-by-K covariance matrix of \eqn{\hat\beta}{beta-hat},
+    or \code{NULL} when \code{se_method = "none"}. Extracted by
+    \code{\link{vcov}}.}
+  \item{\code{se_method}, \code{boot}}{The standard-error method used and,
+    for the bootstrap, the number of resamples.}
+  \item{\code{H_signal}}{Numeric vector of length K: the per-coefficient
+    signal entropies.}
+  \item{\code{S}}{Single number: the normalized signal entropy.}
+  \item{\code{objective}, \code{value}}{Single number: the maximized dual
+    objective (two names for the same value).}
+  \item{\code{moment_resid}}{Single number: the largest absolute instrument
+    moment at the optimum. Not normalized by \eqn{N} -- see
+    \emph{Note on moment_resid}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{Z}, \code{p0}, \code{v}, \code{w0}, \code{nu}, \code{X},
+    \code{y}, \code{IV}}{The resolved inputs.}
+  \item{\code{N}, \code{K}, \code{P}, \code{M}}{Integers: the numbers of
+    observations, coefficients, instruments and signal support points.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Fits the linear model \eqn{y = X\beta + e} by the (relaxed) stochastic-moments
@@ -103,6 +142,39 @@ These are \emph{asymptotic} SEs: the sampling distribution of \eqn{\hat\beta}
 is support-bounded and can be skewed, so symmetric Wald intervals are
 approximate with weak instruments or small \eqn{n}.
 }
+\section{Choosing the supports}{
+
+The \strong{signal} support \code{Z} is the consequential input here. It must
+contain the true coefficients: if it does not, \eqn{\hat\beta} is pinned to
+the boundary of \code{Z} (for example, a support of \eqn{\pm 1} returns
+\eqn{\hat\beta_k = 1} for a coefficient whose true value is 1.5). Widening
+\code{Z} moves the estimate toward the exact (2SLS-type) IV solution;
+narrowing it shrinks \eqn{\beta} toward the support centers.
+
+The \strong{error} support \code{v} is far less critical, and -- unlike
+\code{\link{linreg}} and \code{\link{inverse_noise}} -- its default does not
+need to grow with the sample size. Those estimators impose one dual condition
+per observation, \eqn{y_t = x_t'\beta + e_t}, so every realized error must fit
+inside \code{v}; because the largest of \eqn{T} errors grows like
+\eqn{\sigma\sqrt{2\log T}}, a fixed three-sigma support eventually becomes
+infeasible and their duals become unbounded. \code{linreg_iv()} instead
+imposes only the \eqn{P} aggregate instrument moments
+\eqn{IV'(y - X\beta - e) = 0}, so the noise never has to absorb individual
+residuals and no per-observation feasibility condition arises. In practice
+\eqn{\hat\beta} is nearly invariant to the width of \code{v}, and large
+samples pose no difficulty: the multipliers stay small and the estimate
+tracks the exact IV solution.
+}
+
+\section{Note on \code{moment_resid}}{
+
+\code{moment_resid} is \eqn{\max_p |IV'(y - X\beta - e)|_p} evaluated on the
+standardized instruments. It is a \emph{sum} over the \eqn{N} observations and
+is not divided by \eqn{N}, so its magnitude grows with the sample size even
+when the fit is excellent; judge it relative to \eqn{N} (or compare fits of
+the same size) rather than against a fixed threshold.
+}
+
 \examples{
 set.seed(1)
 n  <- 200L
@@ -120,7 +192,9 @@ coef(fit)                              # slope ~ 1.5 (vs OLS biased upward)
 \references{
 Golan, A. (2008). \emph{Information and Entropy Econometrics -
   A Review and Synthesis}. Foundations and Trends in Econometrics, 2(1-2),
-  1-145. Pages 89-91.
+  1-145. Pages 89-91. Golan, A., Judge, G. and Miller, D. (1996).
+  \emph{Maximum Entropy Econometrics: Robust Estimation with Limited Data}.
+  Wiley.
 }
 \seealso{
 \code{\link{linreg}} for the (non-IV) GME/GCE regression.
