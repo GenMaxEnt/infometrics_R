@@ -77,10 +77,22 @@ satisfy the additivity (normalization) constraints
 \end{equation}
 
 with $p_{km} \ge 0$ and $w_{tj} \ge 0$. The support $\mathbf{z}_k$ must be wide
-enough to contain the true value of $\beta_k$; the error support $\mathbf{v}$ is
-symmetric around zero so that the noise is mean-zero, with a half-width set by
-the **three-sigma rule** [@pukelsheim1994three] --- three times an estimate of
-$\mathbf{y}$'s standard deviation.
+enough to contain the true value of $\beta_k$, and the error support
+$\mathbf{v}$ --- symmetric around zero so that the noise is mean-zero --- must be
+wide enough to contain every realized error.
+
+The traditional choice is the **three-sigma rule** [@pukelsheim1994three]: a
+half-width of three times an estimate of $\mathbf{y}$'s standard deviation. It
+is worth being careful with it here. Pukelsheim's rule bounds a *single* draw
+(at least 95% of the mass of any unimodal distribution lies within three
+standard deviations), but the error support has to bound **all $T$ errors at
+once**. The largest of $T$ draws grows like $\sigma\sqrt{2\log T}$, which passes
+$3\sigma$ at around $T \approx 90$ and keeps growing, so a fixed three-sigma
+support becomes too narrow in even moderately large samples. `linreg()`
+therefore defaults the error half-width to
+$\max(3, \sqrt{2\log T})\,\mathrm{sd}(y)$, and we use the same rule in the
+examples below. Section \@ref(when-the-supports-are-too-narrow) shows what goes
+wrong when the support does not fit.
 
 Among the infinitely many distributions consistent with the data we select the
 one that is maximally uninformative, i.e. that maximizes the Shannon entropy
@@ -185,14 +197,17 @@ cor(x2, x3)                           # near-perfect collinearity
 
 We fit OLS and GME on the same data. For GME we place every coefficient on a
 symmetric five-point support that comfortably contains the true values, and we
-set the noise support by the three-sigma rule using the standard deviation of $\mathbf{y}$.
+set the noise half-width to $\max(3, \sqrt{2\log T})\,\mathrm{sd}(y)$ --- the
+sample-size-aware version of the three-sigma rule discussed above (this is also
+what `linreg()` uses when `v` is left unspecified).
 
 ```{r fit1}
 ols <- lm(y ~ x1 + x2 + x3, data = dat)
 
 Zvec <- seq(-6, 6, length.out = 5)   # coefficient support (shared)
-sig  <- sd(dat$y)                    # standard deviation of y for the noise support
-vvec <- seq(-3 * sig, 3 * sig, length.out = 5)
+sig  <- sd(dat$y)                    # standard deviation of y
+k    <- max(3, sqrt(2 * log(n)))     # sample-size-aware multiple
+vvec <- seq(-k * sig, k * sig, length.out = 5)
 
 gme <- linreg(y ~ x1 + x2 + x3, data = dat,
               Z = Zvec, v = vvec)             # nu = 0.5, uniform priors => GME
@@ -288,11 +303,45 @@ The moment condition $\mathbf{y} = \mathbf{X}\hat{\boldsymbol{\beta}} +
 \hat{\mathbf{e}}$ holds for every $\nu$; what changes is how much of $\mathbf{y}$
 is attributed to the systematic part $\mathbf{X}\boldsymbol{\beta}$ versus the
 noise $\mathbf{e}$. A larger $\nu$ shifts weight onto the noise term, a smaller
-$\nu$ onto the coefficients, so the coefficients, the ordinary $R^2$, and the
-signal normalized entropy $S$ (Section \@ref(inference)) all move together, as
-the two summary rows show. Unless there is a specific reason to emphasize one
-component over the other, the equal-weight default $\nu = 0.5$ is the
-recommended choice.
+$\nu$ onto the coefficients. The two summary rows move in opposite directions:
+as $\nu$ rises the ordinary $R^2$ increases slightly while the signal normalized
+entropy $S$ (Section \@ref(inference)) falls, i.e. the fitted coefficients carry
+progressively more information relative to the prior. Unless there is a specific
+reason to emphasize one component over the other, the equal-weight default
+$\nu = 0.5$ is the recommended choice.
+
+## When the supports are too narrow {#when-the-supports-are-too-narrow}
+
+The supports are not just a regularization dial --- they determine whether the
+problem has a solution at all. The GME dual is bounded below **only if**
+$\mathbf{y}$ can actually be written as $\mathbf{X}\boldsymbol{\beta} +
+\mathbf{e}$ with every $\beta_k$ inside $\mathbf{Z}$ and every $e_t$ inside
+$\mathbf{v}$. If it cannot, the dual is *unbounded*: the multipliers diverge, the
+softmax saturates, and $\hat{\boldsymbol{\beta}}$ is driven onto a vertex of its
+own support --- a result that looks like a converged fit but is meaningless.
+
+`linreg()` guards against this by checking the first-order condition
+$\mathbf{y} - \mathbf{X}\hat{\boldsymbol{\beta}} - \hat{\mathbf{e}} = \mathbf{0}$
+at the optimum, reporting it as `foc_residual` and warning when it is violated.
+A healthy fit has a tiny residual:
+
+```{r foc-ok}
+c(foc_residual = gme$foc_residual, converged = gme$converged)
+```
+
+Deliberately shrinking the noise support until the errors cannot fit shows the
+failure mode --- note the warning, and the coefficients pinned to the edges of
+`Zvec`:
+
+```{r foc-bad}
+bad <- linreg(y ~ x1 + x2 + x3, data = dat,
+              Z = Zvec, v = c(-0.01, 0, 0.01))   # far too narrow
+round(coef(bad), 3)
+c(foc_residual = bad$foc_residual, converged = bad$converged)
+```
+
+The remedy is always the same: widen the error support `v` (and, if a
+coefficient is genuinely large, `Z`).
 
 # Inference: entropy diagnostics and hypothesis tests {#inference}
 
@@ -489,8 +538,12 @@ intervals are approximate with weak instruments or small $n$.
 
 - **Supports are the key input.** Center the coefficient support on plausible
   values and make it wide enough to contain the truth; a wider support behaves
-  more like OLS, a narrower one regularizes more strongly. Use the three-sigma
-  rule for the symmetric noise support `v`.
+  more like OLS, a narrower one regularizes more strongly. For the symmetric
+  noise support `v`, use a half-width of $\max(3, \sqrt{2\log T})\,\mathrm{sd}(y)$
+  rather than a fixed three sigma --- it must bound *all* $T$ errors, not one.
+- **Check `foc_residual`.** It is near zero for a healthy fit; a large value (or
+  a warning about an unbounded dual) means the supports cannot represent the
+  data, and the estimates are not trustworthy.
 - **Reach for GCE when you have real prior information.** Encode it through
   `p0`; a uniform `p0` is exactly GME.
 - **Leave `nu = 0.5` unless you have a reason not to.** It is the standard
