@@ -57,8 +57,9 @@ correspond, in order, to the columns of the model matrix (so row 1 is the
 intercept's support when an intercept is present). Default: a 5-point
 symmetric support spanning +/- a multiple of \code{sd(y)}.}
 
-\item{nu}{Entropy weight in \eqn{(0,1)} on the noise term; default 0.5
-(equal-weight GME/GCE).}
+\item{nu}{Entropy weight in \eqn{(0,1)} on the noise term, hence the weight
+on the signal is \eqn{1-\nu}; default 0.5 (equal weight on both the signal
+and the noise).}
 
 \item{p0}{Prior signal probabilities, a K-by-M matrix matching \code{Z};
 strictly positive rows summing to 1. Default uniform.}
@@ -85,27 +86,58 @@ rows summing to 1 (default uniform).}
 \item{signif.stars}{Logical; show significance stars (default from options).}
 }
 \value{
-An object of class \code{c("linreg", "infometrics")}: a list with
-  \code{coefficients} (\eqn{\beta}, named by the model-matrix columns),
-  \code{p}/\code{p_hat} (K-by-M signal probabilities), \code{lambda}/
-  \code{lambda_hat}, \code{w}/\code{w_hat} (T-by-J noise probabilities),
-  \code{e}, \code{nu}, \code{fitted.values}, \code{residuals}, \code{vcov}
-  (asymptotic Cov(\eqn{\beta}), Golan 2008 p. 96), \code{hessian} (positive
-  definite dual Hessian), \code{r.squared}, \code{H_signal} (K-vector of
-  per-coefficient signal entropies), \code{S} (signal normalized entropy
-  \eqn{H(\hat{p})/H(p_0)}; reduces to \eqn{H/(K\log M)} for a uniform prior
-  and can exceed 1 for a strongly informative prior),
-  \code{objective}/\code{value}, \code{foc_residual} (\eqn{\max|y - X\beta -
-  e|} at the optimum; near 0 for a healthy fit), \code{converged},
-  \code{convergence},
-  \code{method}, the resolved inputs \code{Z}, \code{p0}, \code{v},
-  \code{w0}, \code{X}, \code{y}, \code{control} (retained so \code{summary()}
-  can refit for the ER test), plus \code{terms}, \code{model},
-  \code{xlevels}, \code{call}.
+An object of class \code{c("linreg", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{coefficients}}{Numeric vector of length K: the estimated
+    coefficients \eqn{\hat\beta = Z\hat p}{beta-hat = Z p-hat}, named by the model-matrix
+    columns. Extracted by \code{\link{coef}}.}
+  \item{\code{p}, \code{p_hat}}{K-by-M matrix of estimated signal
+    probabilities (two names for the same object).}
+  \item{\code{lambda}, \code{lambda_hat}}{Numeric vector of length T: the
+    estimated Lagrange multipliers (two names for the same object).}
+  \item{\code{w}, \code{w_hat}}{T-by-J matrix of estimated noise
+    probabilities (two names for the same object).}
+  \item{\code{e}}{Numeric vector of length T: the estimated noise,
+    \eqn{e_t = \sum_j v_j w_{tj}}.}
+  \item{\code{fitted.values}}{Numeric vector of length T:
+    \eqn{X\hat\beta}{X beta-hat}. Extracted by \code{\link{fitted}}.}
+  \item{\code{residuals}}{Numeric vector of length T: \eqn{y - X\hat\beta}{y - X beta-hat},
+    which equals \code{e} at a converged optimum. Extracted by
+    \code{\link{residuals}}.}
+  \item{\code{vcov}}{K-by-K asymptotic covariance matrix of \eqn{\hat\beta}{beta-hat}
+    (Golan 2008, p. 96). Extracted by \code{\link{vcov}}.}
+  \item{\code{hessian}}{T-by-T dual Hessian at the optimum; positive
+    definite.}
+  \item{\code{r.squared}}{Single number: the ordinary coefficient of
+    determination.}
+  \item{\code{H_signal}}{Numeric vector of length K: the per-coefficient
+    signal entropies \eqn{H(\hat p_k)}{H(p-hat_k)}.}
+  \item{\code{S}}{Single number: the normalized signal entropy
+    \eqn{H(\hat p)/H(p_0)}{H(p-hat)/H(p0)}. With a uniform prior this reduces to
+    \eqn{H/(K\log M)} and lies in \[0, 1\]; with an informative prior it is
+    measured relative to that prior and may exceed 1.}
+  \item{\code{objective}, \code{value}}{Single number: the minimised dual
+    objective (two names for the same value).}
+  \item{\code{foc_residual}}{Single number: \eqn{\max|y - X\hat\beta - \hat e|}{max|y - X beta-hat - e-hat|} at the optimum. Near 0 for a healthy fit; see
+    \emph{Support feasibility}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} converged
+    \emph{and} the first-order condition is satisfied.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{nu}}{Single number: the entropy weight used.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{Z}, \code{p0}, \code{v}, \code{w0}, \code{X}, \code{y},
+    \code{control}}{The resolved inputs, retained so that \code{summary()}
+    can refit the model for the entropy-ratio test.}
+  \item{\code{terms}, \code{model}, \code{xlevels}, \code{call}}{The standard
+    model components, as returned by \code{\link[stats]{lm}}.}
+}
 }
 \description{
 Fits the linear model \eqn{y = X\beta + e} by Generalized Cross-Entropy
-(Golan 2008, Section 6.1, Eq. 6.5). Each coefficient is reparameterized on
+(Golan 2008, Section 6.1, Eq. 6.5; see also Golan, Judge & Miller, 1996,
+Ch. 6). Each coefficient is reparameterized on
 a bounded support, \eqn{\beta_k = \sum_m z_{km} p_{km}}, and each error on a
 noise support, \eqn{e_t = \sum_j v_j w_{tj}}; the signal and noise entropies
 (relative to priors \code{p0}, \code{w0}) are maximized subject to the data
@@ -113,10 +145,6 @@ constraints, with weight \eqn{\nu \in (0,1)} on the noise. Estimation uses
 the concentrated dual in the T Lagrange multipliers.
 }
 \details{
-As the supports widen the GCE estimates approach OLS; narrower supports
-shrink \eqn{\beta} toward the support centers.
-
-
 This fits the Generalized Cross-Entropy (GCE) linear regression estimator
 with an lm-style interface, adding a \code{\link{predict}} method,
 an \code{lm}-style coefficient table, and \code{r.squared}. The dual is
@@ -191,7 +219,9 @@ summary(fit)
 \references{
 Golan, A. (2008). \emph{Information and Entropy Econometrics -
   A Review and Synthesis}. Foundations and Trends in Econometrics,
-  2(1-2), 1-145. Section 6.1.
+  2(1-2), 1-145. Section 6.1. Golan, A., Judge, G. and Miller, D. (1996).
+  \emph{Maximum Entropy Econometrics: Robust Estimation with Limited Data}.
+  Wiley. Chapter 6.
 }
 \seealso{
 \code{\link{inverse_ce}}, \code{\link{inverse_noise}} for related
