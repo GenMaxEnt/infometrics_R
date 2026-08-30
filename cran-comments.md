@@ -59,4 +59,4 @@ Both parts of this NOTE are expected and, I believe, benign:
 
 ## Test suite
 
-689 `testthat` tests pass with 0 failures and 0 warnings.
+693 `testthat` tests pass with 0 failures and 0 warnings.
