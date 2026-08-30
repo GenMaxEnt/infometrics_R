@@ -51,16 +51,47 @@ Default uniform; its column count must match \code{length(v)}.}
 \item{digits}{Significant digits to print.}
 }
 \value{
-An object of class \code{c("matrix_gce", "infometrics")}: a list with
-  \code{p}/\code{p_hat} (n-by-m signal), \code{w}/\code{w_hat} (n-by-H noise),
-  \code{e} (length-n noise), \code{lambda}/\code{lambda_hat}, \code{nu},
-  \code{fitted.values} (\eqn{Px}), \code{residuals} (\eqn{y - Px}, equal to
-  \code{e} at the optimum), \code{entropy_p}/\code{H_signal} (scalar
-  \eqn{H(\hat p)}), \code{entropy_w}, \code{entropy_p0}, \code{entropy_w0},
-  \code{S_p}/\code{S} and \code{S_w} (normalized entropies
-  \eqn{H(\cdot)/H(\cdot_0)} in [0, 1]), \code{objective}/\code{value} (dual
-  objective), \code{signal_prior}, \code{noise_prior}, \code{support},
-  \code{converged}, \code{convergence}, \code{method}, and \code{call}.
+An object of class \code{c("matrix_gce", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{p}, \code{p_hat}}{n-by-m matrix of estimated column-stochastic
+    signal probabilities (two names for the same object). Extracted by
+    \code{\link{coef}}.}
+  \item{\code{w}, \code{w_hat}}{n-by-H matrix of estimated row-stochastic
+    noise probabilities (two names for the same object).}
+  \item{\code{e}}{Numeric vector of length n: the estimated noise,
+    \eqn{e_i = \sum_h v_h \hat w_{ih}}{e_i = sum_h v_h w-hat_ih}.}
+  \item{\code{lambda}, \code{lambda_hat}}{Numeric vector of length n: the
+    estimated row multipliers (two names for the same object).}
+  \item{\code{nu}}{Single number: the entropy weight used.}
+  \item{\code{fitted.values}}{Numeric vector of length n: \eqn{\hat P x}{P-hat x}.
+    Extracted by \code{\link{fitted}}.}
+  \item{\code{residuals}}{Numeric vector of length n:
+    \eqn{y - \hat P x}{y - P-hat x}, which equals \code{e} at a converged
+    optimum. Extracted by \code{\link{residuals}}.}
+  \item{\code{entropy_p}, \code{H_signal}}{Single number: the signal entropy
+    \eqn{H(\hat p)}{H(p-hat)} (two names for the same value).}
+  \item{\code{entropy_w}}{Single number: the noise entropy
+    \eqn{H(\hat w)}{H(w-hat)}.}
+  \item{\code{entropy_p0}, \code{entropy_w0}}{Single numbers: the signal and
+    noise prior entropies \eqn{H(p_0)}{H(p0)} and \eqn{H(w_0)}{H(w0)}.}
+  \item{\code{S_p}, \code{S}}{Single number: the normalized signal entropy
+    \eqn{H(\hat p)/H(p_0)}{H(p-hat)/H(p0)} (two names for the same value).}
+  \item{\code{S_w}}{Single number: the normalized noise entropy
+    \eqn{H(\hat w)/H(w_0)}{H(w-hat)/H(w0)}.}
+  \item{\code{objective}, \code{value}}{Single number: the minimised dual
+    objective (two names for the same value).}
+  \item{\code{signal_prior}, \code{noise_prior}}{The resolved priors
+    \code{p0} (n-by-m) and \code{w0} (n-by-H).}
+  \item{\code{support}}{Numeric vector of length H: the resolved noise
+    support \code{v}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Noisy extension of \code{\link{matrix_ce}} (Golan 2008, Section 7.4). The

@@ -98,19 +98,62 @@ units and re-solves the dual).}
 \item{digits}{Significant digits to print.}
 }
 \value{
-An object of class \code{c("markov_gce", "infometrics")} with \code{p}/
-  \code{p_hat} (\code{K x K} row-stochastic), \code{lambda}/\code{lambda_hat}
-  (\code{S x K}), \code{epsilon} (fitted per-observation errors, Pn x K),
-  \code{se} (multinomial SE of \code{P}), \code{se_lambda} (\code{S x K}
-  analytic-Hessian unit-clustered sandwich SE of \eqn{\lambda}; all finite --
-  the noise identifies \eqn{\lambda}, so no reference is needed),
-  \code{vcov_lambda}, \code{states}, \code{n_transitions}, \code{nu}, \code{v},
-  \code{H_p}/\code{H_signal} (signal/mean row entropy), \code{H_w} (noise
-  entropy), \code{entropy}, \code{S} (normalized entropy),
-  \code{fitted.values}, \code{residuals}, \code{moment_residual}
-  (exact-moment gap, expected nonzero), \code{foc_residual} (noisy-moment gap,
-  ~0 at the optimum), \code{objective}/\code{value}, \code{prior},
-  \code{converged}, \code{convergence}, \code{method}, and \code{call}.
+An object of class \code{c("markov_gce", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{p}, \code{p_hat}}{K-by-K row-stochastic transition matrix,
+    \eqn{\hat P_{kj} = k \to j}{P-hat_kj = k -> j} (two names for the same
+    object). Extracted by \code{\link{coef}}.}
+  \item{\code{lambda}, \code{lambda_hat}}{S-by-K matrix of estimated Lagrange
+    multipliers, reported on the original covariate scale (two names for the
+    same object).}
+  \item{\code{epsilon}}{Matrix of fitted per-transition errors
+    \eqn{\hat\varepsilon_{itj}}{eps-hat_itj}, one row per transition and one
+    column per destination state.}
+  \item{\code{se}}{K-by-K matrix of large-sample multinomial standard errors
+    of \eqn{\hat P}{P-hat}.}
+  \item{\code{se_lambda}}{S-by-K matrix of analytic-Hessian, unit-clustered
+    sandwich standard errors of \eqn{\lambda}{lambda}. All entries are
+    reported: the noise identifies \eqn{\lambda}{lambda}, so no reference
+    normalization is needed.}
+  \item{\code{vcov_lambda}}{Covariance matrix of \eqn{\lambda}{lambda}, or
+    \code{NULL} if the sandwich could not be formed.}
+  \item{\code{states}}{Character vector of length K: the state labels.}
+  \item{\code{se_data}}{List of the cross moments, lead/lagged design blocks
+    and scaling used by \code{\link{margins.markov_gce}}.}
+  \item{\code{n_transitions}}{Integer: the number of unit-period transitions,
+    \eqn{N(T-1)}{N(T - 1)}.}
+  \item{\code{n_from}}{Numeric vector of length K: the total weight of each
+    origin state across transitions.}
+  \item{\code{nu}}{Single number: the signal/noise weight used.}
+  \item{\code{v}, \code{w0}}{The resolved error support and its prior.}
+  \item{\code{H_p}, \code{H_signal}, \code{entropy}}{Single number: the mean
+    row entropy of \eqn{\hat P}{P-hat} (three names for the same value).}
+  \item{\code{H_w}}{Single number: the mean noise entropy
+    \eqn{H(\hat w)}{H(w-hat)}.}
+  \item{\code{S}}{Single number: the prior-relative normalized entropy, the
+    mean row entropy of \eqn{\hat P}{P-hat} divided by that of \code{p0}.}
+  \item{\code{fitted.values}}{Matrix of fitted lead states,
+    \eqn{X\hat P}{X P-hat}, one row per transition. Extracted by
+    \code{\link{fitted}}.}
+  \item{\code{residuals}}{Matrix of the same dimension:
+    \eqn{Y - X\hat P}{Y - X P-hat}. Extracted by \code{\link{residuals}}.}
+  \item{\code{moment_residual}}{Single number:
+    \eqn{\max|M - A'\hat P|}{max|M - A' P-hat|}, the \emph{exact}-moment gap.
+    Expected to be nonzero -- it is absorbed by the noise.}
+  \item{\code{foc_residual}}{Single number:
+    \eqn{\max|M - A'\hat P - \sum z\,\hat\varepsilon|}{max|M - A' P-hat - sum z eps-hat|},
+    the noisy first-order condition. Near 0 at a healthy optimum.}
+  \item{\code{objective}, \code{value}}{Single number: the maximized dual
+    objective (two names for the same value).}
+  \item{\code{prior}}{The resolved K-by-K prior \code{p0}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Estimates a row-stochastic \eqn{K \times K} matrix \eqn{P} linking simplex-

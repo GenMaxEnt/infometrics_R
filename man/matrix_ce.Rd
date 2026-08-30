@@ -45,17 +45,40 @@ whose columns sum to 1. Defaults to uniform (\code{1/n}).}
 \item{digits}{Number of significant digits to print.}
 }
 \value{
-An object of class \code{c("matrix_ce", "infometrics")}: a list with
-  \code{p}/\code{p_hat} (the n-by-m estimate), \code{lambda}/\code{lambda_hat}
-  (length-n multipliers), \code{fitted}/\code{fitted.values}
-  (\eqn{\sum_j p_{ij} x_j}), \code{residuals} (\eqn{y -} fitted),
-  \code{entropy}/\code{H_signal} (Shannon \eqn{H(\hat p)}), \code{entropy_p0}
-  (prior entropy \eqn{H(p0)}), \code{S} (prior-relative normalized entropy
-  \eqn{H(\hat p)/H(p0)}; in [0, 1] for uniform \code{p0}), \code{cross_entropy}
-  (\eqn{D(\hat p\|p0)}),
-  \code{objective}/\code{value} (dual objective at the optimum), \code{prior},
-  \code{converged}, \code{convergence}, \code{method}, \code{y}, \code{x},
-  \code{n}, \code{m}, and \code{call}.
+An object of class \code{c("matrix_ce", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{p}, \code{p_hat}}{n-by-m matrix of estimated column-stochastic
+    probabilities (two names for the same object). Extracted by
+    \code{\link{coef}}.}
+  \item{\code{lambda}, \code{lambda_hat}}{Numeric vector of length n: the
+    estimated row multipliers (two names for the same object).}
+  \item{\code{fitted}, \code{fitted.values}}{Numeric vector of length n:
+    \eqn{\sum_j \hat p_{ij} x_j}{sum_j p-hat_ij x_j} (two names for the same
+    object). Extracted by \code{\link{fitted}}.}
+  \item{\code{residuals}}{Numeric vector of length n:
+    \eqn{y - \hat y}{y - y-hat}, the row-aggregate residual. Extracted by
+    \code{\link{residuals}}.}
+  \item{\code{entropy}, \code{H_signal}}{Single number: the Shannon entropy
+    \eqn{H(\hat p)}{H(p-hat)} (two names for the same value).}
+  \item{\code{entropy_p0}}{Single number: the prior entropy \eqn{H(p_0)}{H(p0)}.}
+  \item{\code{S}}{Single number: the prior-relative normalized entropy
+    \eqn{H(\hat p)/H(p_0)}{H(p-hat)/H(p0)}, which lies in [0, 1] for a
+    uniform \code{p0}.}
+  \item{\code{cross_entropy}}{Single number: the cross-entropy
+    \eqn{D(\hat p\|p_0)}{D(p-hat || p0)} at the optimum.}
+  \item{\code{objective}, \code{value}}{Single number: the minimised dual
+    objective (two names for the same value).}
+  \item{\code{prior}}{The resolved n-by-m prior \code{p0}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{y}, \code{x}, \code{n}, \code{m}}{The resolved inputs and their
+    lengths \code{n = length(y)}, \code{m = length(x)}.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Recovers a non-negative matrix \eqn{p} (each column a probability

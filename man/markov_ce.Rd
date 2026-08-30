@@ -81,17 +81,56 @@ average marginal effect (\code{S x K}); if \code{FALSE} the full
 \item{digits}{Significant digits to print.}
 }
 \value{
-An object of class \code{c("markov_ce", "infometrics")} with \code{p}/
-  \code{p_hat} (\code{K x K} row-stochastic), \code{lambda}/\code{lambda_hat}
-  (\code{S x K}), \code{se} (multinomial SE of \code{P}), \code{se_lambda}
-  (\code{S x K} analytic-Hessian sandwich SE of \eqn{\lambda}, reference
-  destination column \code{NA}), \code{lambda_ref}, \code{vcov_lambda},
-  \code{n_from}, \code{states},
-  \code{n_transitions}, \code{fitted.values}, \code{residuals},
-  \code{entropy}/\code{H_signal} (mean row entropy), \code{S} (prior-relative
-  normalized entropy), \code{moment_residual}, \code{objective}/\code{value},
-  \code{prior}, \code{state_type}, \code{converged}, \code{convergence},
-  \code{method}, and \code{call}.
+An object of class \code{c("markov_ce", "infometrics")}, which is a list
+containing the following components:
+\describe{
+  \item{\code{p}, \code{p_hat}}{K-by-K row-stochastic transition matrix,
+    \eqn{\hat P_{kj} = k \to j}{P-hat_kj = k -> j} (two names for the same
+    object). Extracted by \code{\link{coef}}.}
+  \item{\code{lambda}, \code{lambda_hat}}{S-by-K matrix of estimated Lagrange
+    multipliers, reported on the original covariate scale (two names for the
+    same object).}
+  \item{\code{se}}{K-by-K matrix of large-sample multinomial standard errors
+    of \eqn{\hat P}{P-hat}.}
+  \item{\code{se_lambda}}{S-by-K matrix of analytic-Hessian sandwich standard
+    errors of \eqn{\lambda}{lambda}. The reference-destination column is
+    \code{NA}, as are entries at a (near-)boundary fit.}
+  \item{\code{lambda_ref}}{Integer: the index of the reference destination
+    state used to normalize \code{se_lambda}.}
+  \item{\code{vcov_lambda}}{Covariance matrix of the free (non-reference)
+    elements of \eqn{\lambda}{lambda}, or \code{NULL} if the sandwich could
+    not be formed.}
+  \item{\code{n_from}}{Numeric vector of length K: the total weight of each
+    origin state across transitions.}
+  \item{\code{states}}{Character vector of length K: the state labels.}
+  \item{\code{se_data}}{List of the cross moments, lead/lagged design blocks
+    and scaling used by \code{\link{margins.markov_ce}}, or \code{NULL} when
+    no covariates were supplied.}
+  \item{\code{n_transitions}}{Integer: the number of unit-period transitions,
+    \eqn{N(T-1)}{N(T - 1)}.}
+  \item{\code{state_type}}{Character string, \code{"indicator"} or
+    \code{"shares"}, describing the supplied state columns.}
+  \item{\code{fitted.values}}{Matrix of fitted lead states,
+    \eqn{X\hat P}{X P-hat}, one row per transition. Extracted by
+    \code{\link{fitted}}.}
+  \item{\code{residuals}}{Matrix of the same dimension:
+    \eqn{Y - X\hat P}{Y - X P-hat}. Extracted by \code{\link{residuals}}.}
+  \item{\code{entropy}, \code{H_signal}}{Single number: the mean row entropy
+    of \eqn{\hat P}{P-hat} (two names for the same value).}
+  \item{\code{S}}{Single number: the prior-relative normalized entropy, the
+    mean row entropy of \eqn{\hat P}{P-hat} divided by that of \code{p0}.}
+  \item{\code{moment_residual}}{Single number:
+    \eqn{\max|M - A'\hat P|}{max|M - A' P-hat|} at the optimum.}
+  \item{\code{objective}, \code{value}}{Single number: the maximized dual
+    objective (two names for the same value).}
+  \item{\code{prior}}{The resolved K-by-K prior \code{p0}.}
+  \item{\code{converged}}{Logical: \code{TRUE} when \code{optim} reported
+    convergence.}
+  \item{\code{convergence}}{Integer: the raw \code{\link[stats]{optim}}
+    convergence code.}
+  \item{\code{method}}{Character string naming the solver, \code{"dual"}.}
+  \item{\code{call}}{The matched call.}
+}
 }
 \description{
 Estimates a first-order, stationary row-stochastic matrix \eqn{P}

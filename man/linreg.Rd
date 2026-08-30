@@ -115,7 +115,7 @@ containing the following components:
     signal entropies \eqn{H(\hat p_k)}{H(p-hat_k)}.}
   \item{\code{S}}{Single number: the normalized signal entropy
     \eqn{H(\hat p)/H(p_0)}{H(p-hat)/H(p0)}. With a uniform prior this reduces to
-    \eqn{H/(K\log M)} and lies in \[0, 1\]; with an informative prior it is
+    \eqn{H/(K\log M)} and lies in [0, 1]; with an informative prior it is
     measured relative to that prior and may exceed 1.}
   \item{\code{objective}, \code{value}}{Single number: the minimised dual
     objective (two names for the same value).}
